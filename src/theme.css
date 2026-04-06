@@ -1,0 +1,115 @@
+@theme {
+  --color-primary: #4F7EFF;
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-text-primary: #1F2937;
+  --color-text-secondary: #6B7280;
+  --color-accent: #A5B4FC;
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+}
+
+.dark {
+  --color-primary: #6B94FF;
+  --color-background: #0F172A;
+  --color-surface: #1E293B;
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-accent: #818CF8;
+}
+
+.sepia {
+  --color-primary: #D97706;
+  --color-background: #FDF6E3;
+  --color-surface: #FEF3C7;
+  --color-text-primary: #451A03;
+  --color-text-secondary: #78350F;
+  --color-accent: #FCD34D;
+}
+
+.dark {
+  --color-primary: #6B94FF;
+  --color-background: #0F172A;
+  --color-surface: #1E293B;
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-accent: #818CF8;
+}
+
+.sepia {
+  --color-primary: #D97706;
+  --color-background: #FDF6E3;
+  --color-surface: #FEF3C7;
+  --color-text-primary: #451A03;
+  --color-text-secondary: #78350F;
+  --color-accent: #FCD34D;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Paper Textures (Only patterns, no background-color) */
+.paper-plain {
+  background-image: none;
+}
+
+.paper-lined {
+  background-image: linear-gradient(rgba(107, 114, 128, 0.15) 1px, transparent 1px);
+  background-size: 100% 2em;
+  background-position: 0 1.9em;
+}
+
+.paper-dotted {
+  background-image: radial-gradient(rgba(107, 114, 128, 0.2) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: 0 0;
+}
+
+.paper-grid {
+  background-image: linear-gradient(to right, rgba(107, 114, 128, 0.1) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(107, 114, 128, 0.1) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.paper-graph {
+  background-image: linear-gradient(to right, rgba(79, 126, 255, 0.15) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(79, 126, 255, 0.15) 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+
+.paper-isometric {
+  background-image: 
+    linear-gradient(30deg, rgba(107, 114, 128, 0.1) 1px, transparent 1px),
+    linear-gradient(150deg, rgba(107, 114, 128, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107, 114, 128, 0.1) 1px, transparent 1px);
+  background-size: 30px 52px;
+}
+
+/* Scrollbar styling for a cleaner look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.2);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.4);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

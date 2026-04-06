@@ -1,0 +1,5 @@
+/* Tailwind + project theme */
+@import "tailwindcss";
+@source "../**/*.{js,ts,jsx,tsx}";
+
+@import "./theme.css";

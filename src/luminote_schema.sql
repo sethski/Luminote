@@ -1,0 +1,308 @@
+-- =====================================================
+-- LUMINOTE — Full Supabase Schema + RLS Policies
+-- Run this in: Supabase Dashboard → SQL Editor
+-- =====================================================
+
+-- ─── 1. PROFILES ─────────────────────────────────────
+-- Extends auth.users. Auto-created on signup via trigger.
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  display_name  TEXT,
+  avatar_url    TEXT,
+  email         TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own profile"
+  ON public.profiles FOR SELECT
+  USING (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile"
+  ON public.profiles FOR UPDATE
+  USING (auth.uid() = id);
+
+-- Trigger: auto-create profile on new user signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.profiles (id, display_name, avatar_url, email)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+    NEW.raw_user_meta_data->>'avatar_url',
+    NEW.email
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+
+-- ─── 2. USER SETTINGS ────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.user_settings (
+  user_id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  theme                TEXT DEFAULT 'light' CHECK (theme IN ('light', 'dark', 'sepia')),
+  font_family          TEXT DEFAULT 'outfit',
+  font_size            INTEGER DEFAULT 16 CHECK (font_size BETWEEN 12 AND 24),
+  paper_default        TEXT DEFAULT 'plain',
+  notifications_enabled BOOLEAN DEFAULT TRUE,
+  updated_at           TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own settings"
+  ON public.user_settings FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Trigger: auto-create settings row on new user
+CREATE OR REPLACE FUNCTION public.handle_new_user_settings()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  INSERT INTO public.user_settings (user_id) VALUES (NEW.id)
+  ON CONFLICT (user_id) DO NOTHING;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_settings ON auth.users;
+CREATE TRIGGER on_auth_user_settings
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user_settings();
+
+
+-- ─── 3. NOTES ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.notes (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title        TEXT DEFAULT '',
+  content      TEXT DEFAULT '',
+  tags         TEXT[] DEFAULT '{}',
+  paper_style  TEXT DEFAULT 'plain',
+  color_style  TEXT DEFAULT 'white',
+  is_deleted   BOOLEAN DEFAULT FALSE,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS notes_user_id_idx ON public.notes(user_id);
+CREATE INDEX IF NOT EXISTS notes_updated_at_idx ON public.notes(updated_at DESC);
+
+ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can CRUD own notes"
+  ON public.notes FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Auto-update updated_at
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
+$$;
+
+CREATE TRIGGER notes_updated_at
+  BEFORE UPDATE ON public.notes
+  FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
+
+
+-- ─── 4. FLASHCARDS ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.flashcards (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  deck_name     TEXT DEFAULT 'Default',
+  front         TEXT NOT NULL,
+  back          TEXT NOT NULL,
+  -- Spaced repetition fields (SM-2 algorithm)
+  ease_factor   FLOAT DEFAULT 2.5,
+  interval      INTEGER DEFAULT 1,        -- days until next review
+  repetitions   INTEGER DEFAULT 0,
+  next_review   DATE DEFAULT CURRENT_DATE,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS flashcards_user_id_idx ON public.flashcards(user_id);
+CREATE INDEX IF NOT EXISTS flashcards_next_review_idx ON public.flashcards(next_review);
+
+ALTER TABLE public.flashcards ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can CRUD own flashcards"
+  ON public.flashcards FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE TRIGGER flashcards_updated_at
+  BEFORE UPDATE ON public.flashcards
+  FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
+
+
+-- ─── 5. STUDY PLANS ──────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.study_plans (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title       TEXT NOT NULL,
+  subject     TEXT DEFAULT '',
+  due_date    DATE,
+  priority    TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
+  status      TEXT DEFAULT 'todo' CHECK (status IN ('todo', 'in_progress', 'done')),
+  notes       TEXT DEFAULT '',
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS study_plans_user_id_idx ON public.study_plans(user_id);
+
+ALTER TABLE public.study_plans ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can CRUD own study plans"
+  ON public.study_plans FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE TRIGGER study_plans_updated_at
+  BEFORE UPDATE ON public.study_plans
+  FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
+
+
+-- ─── 6. FRIENDSHIPS ──────────────────────────────────
+-- Stores friend requests and accepted friendships.
+-- status: 'pending' | 'accepted' | 'blocked'
+CREATE TABLE IF NOT EXISTS public.friendships (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requester_id  UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  addressee_id  UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  status        TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'blocked')),
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(requester_id, addressee_id)
+);
+
+CREATE INDEX IF NOT EXISTS friendships_requester_idx ON public.friendships(requester_id);
+CREATE INDEX IF NOT EXISTS friendships_addressee_idx ON public.friendships(addressee_id);
+
+ALTER TABLE public.friendships ENABLE ROW LEVEL SECURITY;
+
+-- Users can see friendships where they are a participant
+CREATE POLICY "Users can see their own friendships"
+  ON public.friendships FOR SELECT
+  USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
+
+-- Users can create friend requests (they must be the requester)
+CREATE POLICY "Users can send friend requests"
+  ON public.friendships FOR INSERT
+  WITH CHECK (auth.uid() = requester_id);
+
+-- Users can update friendships where they are the addressee (accept/block)
+CREATE POLICY "Addressee can accept or block requests"
+  ON public.friendships FOR UPDATE
+  USING (auth.uid() = addressee_id);
+
+-- Users can delete friendships they are part of (unfriend/cancel)
+CREATE POLICY "Users can delete own friendships"
+  ON public.friendships FOR DELETE
+  USING (auth.uid() = requester_id OR auth.uid() = addressee_id);
+
+
+-- ─── DONE ─────────────────────────────────────────────
+-- After running this SQL:
+-- 1. Go to Authentication → Providers → Enable Google
+-- 2. Add your Google Client ID + Secret
+-- 3. Set redirect URL: https://YOUR_PROJECT.supabase.co/auth/v1/callback
+-- 4. In your .env file add:
+--    VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+--    VITE_SUPABASE_ANON_KEY=your_anon_key
+--    VITE_OPENROUTER_API_KEY=your_openrouter_api_key
+
+-- ─── 7. HANGOUT POSTS ────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.hangout_posts (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  author_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  tag           TEXT DEFAULT '',
+  title         TEXT DEFAULT '',
+  body          TEXT DEFAULT '',
+  attachment    JSONB, -- { name, size, type }
+  icon_bg       TEXT DEFAULT '#E0F2FE',
+  icon_color    TEXT DEFAULT '#059669',
+  icon_name     TEXT DEFAULT 'Sigma',
+  upvotes       INTEGER DEFAULT 0,
+  comments      INTEGER DEFAULT 0,
+  button_text   TEXT,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.hangout_posts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can read hangout posts" ON public.hangout_posts FOR SELECT USING (true);
+CREATE POLICY "Users can create hangout posts" ON public.hangout_posts FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "Users can edit own hangout posts" ON public.hangout_posts FOR UPDATE USING (auth.uid() = author_id);
+CREATE TRIGGER hangout_posts_updated_at BEFORE UPDATE ON public.hangout_posts FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
+
+-- ─── 8. SERVER MESSAGES ──────────────────────────────
+CREATE TABLE IF NOT EXISTS public.server_messages (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  server_id     TEXT NOT NULL,
+  channel_id    TEXT NOT NULL,
+  author_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  text          TEXT DEFAULT '',
+  badge_text    TEXT,
+  badge_style   TEXT, -- json or simple class e.g. 'lab'
+  attachment    JSONB,
+  codeblock     JSONB, -- { title, language, content }
+  image_effect  BOOLEAN DEFAULT FALSE,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS server_messages_server_idx ON public.server_messages(server_id, channel_id);
+ALTER TABLE public.server_messages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can read server messages" ON public.server_messages FOR SELECT USING (true);
+CREATE POLICY "Users can post server messages" ON public.server_messages FOR INSERT WITH CHECK (auth.uid() = author_id);
+CREATE POLICY "Users can edit own server messages" ON public.server_messages FOR UPDATE USING (auth.uid() = author_id);
+CREATE TRIGGER server_messages_updated_at BEFORE UPDATE ON public.server_messages FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
+
+-- ─── 9. SPACES ───────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.spaces (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          TEXT NOT NULL,
+  type          TEXT NOT NULL CHECK (type IN ('community', 'server')),
+  image_url     TEXT,
+  created_by    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.spaces ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can read spaces" ON public.spaces FOR SELECT USING (true);
+CREATE POLICY "Users can create spaces" ON public.spaces FOR INSERT WITH CHECK (auth.uid() = created_by);
+CREATE POLICY "Users can update/delete own spaces" ON public.spaces FOR ALL USING (auth.uid() = created_by);
+
+-- ─── 10. CHANNELS ─────────────────────────────────────
+-- Stores channels for each space (server/community)
+CREATE TABLE IF NOT EXISTS public.channels (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  space_id      UUID NOT NULL REFERENCES public.spaces(id) ON DELETE CASCADE,
+  name          TEXT NOT NULL,
+  category      TEXT NOT NULL CHECK (category IN ('discourse', 'knowledge', 'live')),
+  type          TEXT NOT NULL DEFAULT 'text' CHECK (type IN ('text', 'voice', 'video')),
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(space_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS channels_space_id_idx ON public.channels(space_id);
+
+
+ALTER TABLE public.channels ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can read channels" ON public.channels FOR SELECT USING (true);
+CREATE POLICY "Users can manage own channels" ON public.channels FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM public.spaces s 
+    WHERE s.id = channels.space_id AND s.created_by = auth.uid()
+  )
+);
