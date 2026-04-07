@@ -15,7 +15,25 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-const AUTH_STORAGE_KEY = "luminote-auth-v2";
+const supabaseProjectRef = (() => {
+  try {
+    return new URL(supabaseUrl).hostname.split(".")[0] ?? "";
+  } catch {
+    return "";
+  }
+})();
+
+export const AUTH_STORAGE_KEY = supabaseProjectRef
+  ? `luminote-${supabaseProjectRef}-auth-v3`
+  : "luminote-auth-v3";
+
+export const LEGACY_AUTH_STORAGE_KEYS = supabaseProjectRef
+  ? [
+      "luminote-auth-v2",
+      `sb-${supabaseProjectRef}-auth-token`,
+      `sb-${supabaseProjectRef}-auth-token-code-verifier`,
+    ]
+  : ["luminote-auth-v2"];
 
 const supabaseInstance =
   globalForSupabase.supabase ??
@@ -46,7 +64,7 @@ export type Profile = {
 
 export type UserSettings = {
   user_id:               string;
-  theme:                 "light" | "dark" | "sepia";
+  theme:                 "light" | "ash" | "obsidian";
   font_family:           string;
   font_size:             number;
   paper_default:         string;

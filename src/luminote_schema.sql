@@ -48,7 +48,7 @@ CREATE TRIGGER on_auth_user_created
 -- ─── 2. USER SETTINGS ────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.user_settings (
   user_id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  theme                TEXT DEFAULT 'light' CHECK (theme IN ('light', 'dark', 'sepia')),
+  theme                TEXT DEFAULT 'light' CHECK (theme IN ('light', 'ash', 'obsidian')),
   font_family          TEXT DEFAULT 'outfit',
   font_size            INTEGER DEFAULT 16 CHECK (font_size BETWEEN 12 AND 24),
   paper_default        TEXT DEFAULT 'plain',
@@ -170,6 +170,35 @@ CREATE POLICY "Users can CRUD own study plans"
 
 CREATE TRIGGER study_plans_updated_at
   BEFORE UPDATE ON public.study_plans
+  FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
+
+
+-- ─── 5B. USER COURSES ──────────────────────────────
+CREATE TABLE IF NOT EXISTS public.user_courses (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  code           TEXT NOT NULL,
+  title          TEXT NOT NULL,
+  subtitle       TEXT,
+  schedule_days  TEXT[] DEFAULT '{}',
+  schedule_time  TEXT,
+  notes          TEXT DEFAULT '',
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS user_courses_user_id_idx ON public.user_courses(user_id);
+CREATE INDEX IF NOT EXISTS user_courses_created_at_idx ON public.user_courses(created_at DESC);
+
+ALTER TABLE public.user_courses ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can CRUD own courses"
+  ON public.user_courses FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE TRIGGER user_courses_updated_at
+  BEFORE UPDATE ON public.user_courses
   FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
 
 

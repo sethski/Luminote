@@ -21,30 +21,30 @@ const AUTH_CSS = `
 .spin { animation:spin .8s linear infinite; }
 .auth-input {
   width:100%; padding:12px 42px; border-radius:12px;
-  border:1.5px solid #E5E7EB; background:#FAFAFA;
-  font-size:14px; font-family:'Outfit',sans-serif; color:#0E1117;
-  outline:none; transition:border-color .2s, box-shadow .2s, background .2s;
+  border:1.5px solid var(--border); background:var(--bg-main);
+  font-size:14px; font-family:'Outfit',sans-serif; color:var(--text-primary);
+  outline:none; transition:border-color .2s, box-shadow .2s, background .2s, color .2s;
 }
-.auth-input::placeholder { color:#9CA3AF; }
-.auth-input:focus { border-color:#6366F1; background:white; box-shadow:0 0 0 4px rgba(99,102,241,.1); }
-.auth-input-err { border-color:#F43F5E!important; background:#FFF1F2!important; }
+.auth-input::placeholder { color:var(--text-secondary); }
+.auth-input:focus { border-color:var(--accent); background:var(--bg-card); box-shadow:0 0 0 4px rgba(99,102,241,.1); }
+.auth-input-err { border-color:#F43F5E!important; background:rgba(244, 63, 94, 0.1)!important; }
 .auth-input-pr { padding-right:42px!important; }
 .g-btn {
   width:100%; display:flex; align-items:center; justify-content:center; gap:10px;
-  padding:13px; border:1.5px solid #E5E7EB; border-radius:12px; background:white;
-  font-family:'Outfit',sans-serif; font-size:14px; font-weight:600; color:#374151;
-  cursor:pointer; transition:background .15s,border-color .15s,transform .1s;
+  padding:13px; border:1.5px solid var(--border); border-radius:12px; background:var(--bg-card);
+  font-family:'Outfit',sans-serif; font-size:14px; font-weight:600; color:var(--text-primary);
+  cursor:pointer; transition:background .15s,border-color .15s,transform .1s, color .15s;
 }
-.g-btn:hover { background:#F9FAFB; border-color:#D1D5DB; transform:translateY(-1px); }
+.g-btn:hover { background:var(--bg-main); border-color:var(--border); transform:translateY(-1px); }
 .g-btn:disabled { opacity:.6; cursor:not-allowed; }
 .p-btn {
   width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
-  padding:13px; background:#0E1117; color:white; border:none; border-radius:12px;
+  padding:13px; background:var(--accent); color:white; border:none; border-radius:12px;
   font-family:'Outfit',sans-serif; font-size:15px; font-weight:600; cursor:pointer;
-  box-shadow:0 4px 16px rgba(14,17,23,.2);
+  box-shadow:0 4px 16px rgba(0,0,0,.2);
   transition:background .2s,transform .15s,box-shadow .2s;
 }
-.p-btn:hover:not(:disabled) { background:#1e2432; transform:translateY(-1px); box-shadow:0 8px 24px rgba(14,17,23,.25); }
+.p-btn:hover:not(:disabled) { opacity:0.9; transform:translateY(-1px); box-shadow:0 8px 24px rgba(0,0,0,.25); }
 .p-btn:disabled { opacity:.6; cursor:not-allowed; }
 `;
 
@@ -72,12 +72,12 @@ function FieldErr({ msg }: { msg?: string }) {
 function Shell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   return (
-    <div className="auth-root" style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", padding:16, position:"relative", overflow:"hidden", background:"linear-gradient(135deg,#F8F7F4,#EEEDF0)" }}>
+    <div className="auth-root" style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", padding:16, position:"relative", overflow:"hidden", background:"var(--bg-main)", color:"var(--text-primary)", transition:"background-color 300ms ease-in-out, color 300ms ease-in-out" }}>
       <style>{AUTH_CSS}</style>
       <div aria-hidden style={{ position:"absolute", top:"-8%", right:"-5%", width:340, height:340, borderRadius:"50%", background:"rgba(99,102,241,.06)", pointerEvents:"none" }} />
       <div aria-hidden style={{ position:"absolute", bottom:"-10%", left:"-8%", width:420, height:420, borderRadius:"50%", background:"rgba(14,17,23,.04)", pointerEvents:"none" }} />
       <button type="button" onClick={() => navigate("/landing")}
-        style={{ position:"absolute", top:20, left:20, display:"flex", alignItems:"center", gap:6, fontSize:13, color:"#9CA3AF", background:"none", border:"none", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:500, zIndex:10 }}>
+        style={{ position:"absolute", top:20, left:20, display:"flex", alignItems:"center", gap:6, fontSize:13, color:"var(--text-secondary)", background:"none", border:"none", cursor:"pointer", fontFamily:"'Outfit',sans-serif", fontWeight:500, zIndex:10 }}>
         <ArrowLeft size={14} /> Back
       </button>
       {children}
@@ -134,15 +134,15 @@ function LoginView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void;
   return (
     <Shell>
       <div className={`auth-card ${shake ? "auth-shake" : ""}`}
-        style={{ width:"100%", maxWidth:420, background:"white", borderRadius:24, border:"1px solid #E5E7EB", padding:32, boxShadow:"0 16px 48px rgba(0,0,0,.08)" }}>
+        style={{ width:"100%", maxWidth:420, background:"var(--bg-card)", borderRadius:24, border:"1px solid var(--border)", padding:32, boxShadow:"0 16px 48px rgba(0,0,0,.08)", transition:"background-color 300ms ease-in-out, border-color 300ms ease-in-out" }}>
 
         <div style={{ display:"flex", justifyContent:"center", marginBottom:20 }}>
-          <div style={{ width:52, height:52, borderRadius:16, background:"#0E1117", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ width:52, height:52, borderRadius:16, background:"var(--text-primary)", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <BookOpen size={22} color="white" />
           </div>
         </div>
-        <h1 className="auth-serif" style={{ fontSize:"1.75rem", textAlign:"center", color:"#0E1117", marginBottom:4, fontWeight:600 }}>Welcome back</h1>
-        <p style={{ textAlign:"center", color:"#9CA3AF", fontSize:14, marginBottom:24 }}>Sign in to Luminote</p>
+        <h1 className="auth-serif" style={{ fontSize:"1.75rem", textAlign:"center", color:"var(--text-primary)", marginBottom:4, fontWeight:600 }}>Welcome back</h1>
+        <p style={{ textAlign:"center", color:"var(--text-secondary)", fontSize:14, marginBottom:24 }}>Sign in to Luminote</p>
 
         <button type="button" className="g-btn" onClick={onGoogle} disabled={!!busy}>
           {busy==="google" ? <Loader2 size={16} className="spin" /> : <GIcon />}
@@ -150,18 +150,18 @@ function LoginView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void;
         </button>
 
         <div style={{ display:"flex", alignItems:"center", gap:12, margin:"14px 0" }}>
-          <div style={{ flex:1, height:1, background:"#F3F4F6" }} />
-          <span style={{ fontSize:11, color:"#C4C9D4", fontWeight:700, letterSpacing:".05em" }}>OR</span>
-          <div style={{ flex:1, height:1, background:"#F3F4F6" }} />
+          <div style={{ flex:1, height:1, background:"var(--border)" }} />
+          <span style={{ fontSize:11, color:"var(--text-secondary)", fontWeight:700, letterSpacing:".05em" }}>OR</span>
+          <div style={{ flex:1, height:1, background:"var(--border)" }} />
         </div>
 
         {(errMsg || bootError) && (
-          <div style={{ display:"flex", alignItems:"center", gap:8, background:"#FFF1F2", border:"1px solid #FECDD3", borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(244, 63, 94, 0.1)", border:"1px solid rgba(244, 63, 94, 0.3)", borderRadius:10, padding:"10px 12px", marginBottom:12, transition:"background-color 300ms ease-in-out, border-color 300ms ease-in-out" }}>
             <AlertCircle size={14} color="#F43F5E" />
             <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
               {errMsg && <p style={{ fontSize:13, color:"#BE123C", fontWeight:500 }}>{errMsg}</p>}
               {bootError && <p style={{ fontSize:12, color:"#BE123C", fontWeight:500 }}>Auth issue: {bootError}</p>}
-              <button type="button" onClick={resetAuthCache} style={{ alignSelf:"flex-start", fontSize:11, color:"#6366F1", fontWeight:700, background:"none", border:"none", cursor:"pointer" }}>
+              <button type="button" onClick={resetAuthCache} style={{ alignSelf:"flex-start", fontSize:11, color:"var(--accent)", fontWeight:700, background:"none", border:"none", cursor:"pointer" }}>
                 Reset auth cache & reload
               </button>
             </div>
@@ -170,9 +170,9 @@ function LoginView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void;
 
         <form onSubmit={handleSubmit(onEmail)} noValidate style={{ display:"flex", flexDirection:"column", gap:14 }}>
           <div>
-            <label style={{ display:"block", fontSize:13, fontWeight:600, color:"#374151", marginBottom:6 }}>Email</label>
+            <label style={{ display:"block", fontSize:13, fontWeight:600, color:"var(--text-primary)", marginBottom:6 }}>Email</label>
             <div style={{ position:"relative" }}>
-              <Mail size={15} color="#9CA3AF" style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} />
+              <Mail size={15} color="var(--text-secondary)" style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} />
               <input className={`auth-input ${errors.email ? "auth-input-err" : ""}`} type="email" placeholder="you@example.com"
                 autoComplete="email" {...register("email", { required:"Email required", pattern:{value:/^[^\s@]+@[^\s@]+\.[^\s@]+$/,message:"Invalid email"} })} />
             </div>
@@ -181,16 +181,16 @@ function LoginView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void;
 
           <div>
             <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
-              <label style={{ fontSize:13, fontWeight:600, color:"#374151" }}>Password</label>
-              <button type="button" style={{ fontSize:12, color:"#6366F1", background:"none", border:"none", cursor:"pointer", fontFamily:"inherit", fontWeight:600 }}>Forgot?</button>
+              <label style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)" }}>Password</label>
+              <button type="button" style={{ fontSize:12, color:"var(--accent)", background:"none", border:"none", cursor:"pointer", fontFamily:"inherit", fontWeight:600 }}>Forgot?</button>
             </div>
             <div style={{ position:"relative" }}>
-              <Lock size={15} color="#9CA3AF" style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} />
+              <Lock size={15} color="var(--text-secondary)" style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} />
               <input className={`auth-input auth-input-pr ${errors.password ? "auth-input-err" : ""}`}
                 type={showPw?"text":"password"} placeholder="••••••••" autoComplete="current-password"
                 {...register("password", { required:"Password required", minLength:{value:6,message:"Min 6 chars"} })} />
               <button type="button" onClick={() => setShowPw(v => !v)}
-                style={{ position:"absolute", right:13, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", background:"none", border:"none", cursor:"pointer" }}>
+                style={{ position:"absolute", right:13, top:"50%", transform:"translateY(-50%)", color:"var(--text-secondary)", background:"none", border:"none", cursor:"pointer" }}>
                 {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
@@ -203,13 +203,13 @@ function LoginView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void;
         </form>
 
         <div style={{ marginTop:24, textAlign:"center" }}>
-          <p style={{ fontSize:13, color:"#9CA3AF" }}>
+          <p style={{ fontSize:13, color:"var(--text-secondary)" }}>
             No account?{" "}
             <button type="button" onClick={onSwitch}
-              style={{ color:"#6366F1", fontWeight:700, background:"none", border:"none", cursor:"pointer", fontFamily:"inherit" }}>Sign up</button>
+              style={{ color:"var(--accent)", fontWeight:700, background:"none", border:"none", cursor:"pointer", fontFamily:"inherit" }}>Sign up</button>
           </p>
           <button type="button" onClick={resetAuthCache}
-            style={{ marginTop:14, fontSize:11, color:"#9CA3AF", background:"none", border:"none", cursor:"pointer", fontWeight:500, opacity:0.6 }}>
+            style={{ marginTop:14, fontSize:11, color:"var(--text-secondary)", background:"none", border:"none", cursor:"pointer", fontWeight:500, opacity:0.6 }}>
             Not seeing your data? Reset cache
           </button>
         </div>
@@ -245,14 +245,14 @@ function SignUpView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void
 
   if (done) return (
     <Shell>
-      <div className="auth-card" style={{ width:"100%", maxWidth:400, background:"white", borderRadius:24, border:"1px solid #E5E7EB", padding:40, boxShadow:"0 16px 48px rgba(0,0,0,.08)", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center" }}>
-        <div style={{ width:64, height:64, borderRadius:"50%", background:"#F0FDF4", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:20 }}>
+      <div className="auth-card" style={{ width:"100%", maxWidth:400, background:"var(--bg-card)", borderRadius:24, border:"1px solid var(--border)", padding:40, boxShadow:"0 16px 48px rgba(0,0,0,.08)", display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", transition:"background-color 300ms ease-in-out, border-color 300ms ease-in-out" }}>
+        <div style={{ width:64, height:64, borderRadius:"50%", background:"rgba(16, 185, 129, 0.1)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:20 }}>
           <Mail size={28} color="#16A34A" />
         </div>
-        <h2 className="auth-serif" style={{ fontSize:"1.5rem", color:"#0E1117", marginBottom:8, fontWeight:600 }}>Check your email</h2>
-        <p style={{ color:"#6B7280", fontSize:14, lineHeight:1.6 }}>We sent a confirmation link. Click it to activate your Luminote account.</p>
+        <h2 className="auth-serif" style={{ fontSize:"1.5rem", color:"var(--text-primary)", marginBottom:8, fontWeight:600 }}>Check your email</h2>
+        <p style={{ color:"var(--text-secondary)", fontSize:14, lineHeight:1.6 }}>We sent a confirmation link. Click it to activate your Luminote account.</p>
         <button type="button" onClick={onSwitch}
-          style={{ marginTop:24, color:"#6366F1", fontWeight:600, background:"none", border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:14 }}>
+          style={{ marginTop:24, color:"var(--accent)", fontWeight:600, background:"none", border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:14 }}>
           Back to Sign In
         </button>
       </div>
@@ -261,14 +261,14 @@ function SignUpView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void
 
   return (
     <Shell>
-      <div className="auth-card" style={{ width:"100%", maxWidth:420, background:"white", borderRadius:24, border:"1px solid #E5E7EB", padding:32, boxShadow:"0 16px 48px rgba(0,0,0,.08)" }}>
-        <div style={{ display:"flex", justifyContent:"center", marginBottom:18 }}>
-          <div style={{ width:52, height:52, borderRadius:16, background:"#0E1117", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div className="auth-card" style={{ width:"100%", maxWidth:420, background:"var(--bg-card)", borderRadius:24, border:"1px solid var(--border)", padding:32, boxShadow:"0 16px 48px rgba(0,0,0,.08)", transition:"background-color 300ms ease-in-out, border-color 300ms ease-in-out" }}>
+        <div style={{ display:"flex", justifyContent:"center", marginBottom:20 }}>
+          <div style={{ width:52, height:52, borderRadius:16, background:"var(--text-primary)", display:"flex", alignItems:"center", justifyContent:"center" }}>
             <BookOpen size={22} color="white" />
           </div>
         </div>
-        <h1 className="auth-serif" style={{ fontSize:"1.75rem", textAlign:"center", color:"#0E1117", marginBottom:4, fontWeight:600 }}>Create account</h1>
-        <p style={{ textAlign:"center", color:"#9CA3AF", fontSize:14, marginBottom:18 }}>Join thousands of students</p>
+        <h1 className="auth-serif" style={{ fontSize:"1.75rem", textAlign:"center", color:"var(--text-primary)", marginBottom:4, fontWeight:600 }}>Create account</h1>
+        <p style={{ textAlign:"center", color:"var(--text-secondary)", fontSize:14, marginBottom:18 }}>Join thousands of students</p>
 
         <button type="button" className="g-btn" onClick={onGoogle} disabled={!!busy}>
           {busy==="google" ? <Loader2 size={16} className="spin" /> : <GIcon />}
@@ -276,17 +276,17 @@ function SignUpView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void
         </button>
 
         <div style={{ display:"flex", alignItems:"center", gap:12, margin:"12px 0" }}>
-          <div style={{ flex:1, height:1, background:"#F3F4F6" }} />
-          <span style={{ fontSize:11, color:"#C4C9D4", fontWeight:700 }}>OR</span>
-          <div style={{ flex:1, height:1, background:"#F3F4F6" }} />
+          <div style={{ flex:1, height:1, background:"var(--border)" }} />
+          <span style={{ fontSize:11, color:"var(--text-secondary)", fontWeight:700 }}>OR</span>
+          <div style={{ flex:1, height:1, background:"var(--border)" }} />
         </div>
 
         {bootError && (
-          <div style={{ display:"flex", alignItems:"center", gap:8, background:"#FFF1F2", border:"1px solid #FECDD3", borderRadius:10, padding:"10px 12px", marginBottom:12 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(244, 63, 94, 0.1)", border:"1px solid rgba(244, 63, 94, 0.3)", borderRadius:10, padding:"10px 12px", marginBottom:12, transition:"background-color 300ms ease-in-out, border-color 300ms ease-in-out" }}>
             <AlertCircle size={14} color="#F43F5E" />
             <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
               <p style={{ fontSize:12, color:"#BE123C", fontWeight:500 }}>Auth issue: {bootError}</p>
-              <button type="button" onClick={resetAuthCache} style={{ alignSelf:"flex-start", fontSize:11, color:"#6366F1", fontWeight:700, background:"none", border:"none", cursor:"pointer" }}>
+              <button type="button" onClick={resetAuthCache} style={{ alignSelf:"flex-start", fontSize:11, color:"var(--accent)", fontWeight:700, background:"none", border:"none", cursor:"pointer" }}>
                 Reset auth cache & reload
               </button>
             </div>
@@ -295,8 +295,8 @@ function SignUpView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void
 
         <form onSubmit={handleSubmit(onEmail)} noValidate style={{ display:"flex", flexDirection:"column", gap:11 }}>
           {[
-            { key:"name", placeholder:"Full name", type:"text", icon:<User size={15} color="#9CA3AF" />, ac:"name", rules:{ required:"Name required", minLength:{value:2,message:"Min 2 chars"} } },
-            { key:"email", placeholder:"Email address", type:"email", icon:<Mail size={15} color="#9CA3AF" />, ac:"email", rules:{ required:"Email required", pattern:{value:/^[^\s@]+@[^\s@]+\.[^\s@]+$/,message:"Invalid email"} } },
+            { key:"name", placeholder:"Full name", type:"text", icon:<User size={15} color="var(--text-secondary)" />, ac:"name", rules:{ required:"Name required", minLength:{value:2,message:"Min 2 chars"} } },
+            { key:"email", placeholder:"Email address", type:"email", icon:<Mail size={15} color="var(--text-secondary)" />, ac:"email", rules:{ required:"Email required", pattern:{value:/^[^\s@]+@[^\s@]+\.[^\s@]+$/,message:"Invalid email"} } },
           ].map(({ key, placeholder, type, icon, ac, rules }) => (
             <div key={key}>
               <div style={{ position:"relative" }}>
@@ -314,12 +314,12 @@ function SignUpView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void
           ].map(({ key, placeholder, show, setShow, ac, rules }) => (
             <div key={key}>
               <div style={{ position:"relative" }}>
-                <Lock size={15} color="#9CA3AF" style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} />
+                <Lock size={15} color="var(--text-secondary)" style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", pointerEvents:"none" }} />
                 <input className={`auth-input auth-input-pr ${(errors as any)[key] ? "auth-input-err" : ""}`}
                   type={show?"text":"password"} placeholder={placeholder} autoComplete={ac}
                   {...register(key as any, rules as any)} />
                 <button type="button" onClick={() => setShow((v:boolean) => !v)}
-                  style={{ position:"absolute", right:13, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", background:"none", border:"none", cursor:"pointer" }}>
+                  style={{ position:"absolute", right:13, top:"50%", transform:"translateY(-50%)", color:"var(--text-secondary)", background:"none", border:"none", cursor:"pointer" }}>
                   {show ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
@@ -327,11 +327,11 @@ function SignUpView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void
             </div>
           ))}
 
-          <p style={{ fontSize:11, color:"#9CA3AF", textAlign:"center" }}>
+          <p style={{ fontSize:11, color:"var(--text-secondary)", textAlign:"center" }}>
             By signing up you agree to our{" "}
-            <button type="button" style={{ color:"#6366F1", background:"none", border:"none", cursor:"pointer", fontSize:"inherit", fontFamily:"inherit", fontWeight:600 }}>Terms</button>
+            <button type="button" style={{ color:"var(--accent)", background:"none", border:"none", cursor:"pointer", fontSize:"inherit", fontFamily:"inherit", fontWeight:600 }}>Terms</button>
             {" "}&amp;{" "}
-            <button type="button" style={{ color:"#6366F1", background:"none", border:"none", cursor:"pointer", fontSize:"inherit", fontFamily:"inherit", fontWeight:600 }}>Privacy</button>.
+            <button type="button" style={{ color:"var(--accent)", background:"none", border:"none", cursor:"pointer", fontSize:"inherit", fontFamily:"inherit", fontWeight:600 }}>Privacy</button>.
           </p>
 
           <button type="submit" className="p-btn" disabled={!!busy}>
@@ -339,10 +339,10 @@ function SignUpView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void
           </button>
         </form>
 
-        <p style={{ marginTop:14, textAlign:"center", fontSize:13, color:"#9CA3AF" }}>
+        <p style={{ marginTop:14, textAlign:"center", fontSize:13, color:"var(--text-secondary)" }}>
           Have an account?{" "}
           <button type="button" onClick={onSwitch}
-            style={{ color:"#6366F1", fontWeight:700, background:"none", border:"none", cursor:"pointer", fontFamily:"inherit" }}>Sign in</button>
+            style={{ color:"var(--accent)", fontWeight:700, background:"none", border:"none", cursor:"pointer", fontFamily:"inherit" }}>Sign in</button>
         </p>
       </div>
     </Shell>

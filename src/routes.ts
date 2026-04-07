@@ -28,6 +28,7 @@ import { UploadImage   } from "./UploadImage";
 import { VoiceMemo     } from "./VoiceMemo";
 import { Hangout       } from "./Hangout";
 import { Personal      } from "./Personal";
+import { CourseDetail  } from "./CourseDetail";
 import { Features      } from "./Features";
 import { Flashcards    } from "./Flashcards";
 import { StudyPlanner  } from "./StudyPlanner";
@@ -61,7 +62,9 @@ export const router = createBrowserRouter([
       { path: "voice-memo",     Component: VoiceMemo      },
       { path: "hangout",        Component: Hangout         },
       { path: "hangout/:server", Component: ServerPage      },
+      { path: "hangout/:server/:channel", Component: ServerPage },
       { path: "personal",       Component: Personal        },
+      { path: "personal/course/:courseId", Component: CourseDetail },
       { path: "features",       Component: Features        },
       { path: "flashcards",     Component: Flashcards      },
       { path: "study-planner",  Component: StudyPlanner    },

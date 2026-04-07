@@ -25,9 +25,9 @@ const FONTS = [
 ];
 const FONT_SIZES = [13, 14, 15, 16, 17, 18];
 const THEMES = [
-  { id: "light" as const, label: "Light", Icon: Sun,    bg: "#FFFFFF", textC: "#374151" },
-  { id: "dark"  as const, label: "Dark",  Icon: Moon,   bg: "#0E1117", textC: "#F9FAFB" },
-  { id: "sepia" as const, label: "Sepia", Icon: Coffee, bg: "#FDF6E3", textC: "#3B2A1A" },
+  { id: "light"    as const, label: "Light",    Icon: Sun,  bg: "#ffffff", textC: "#0f172a" },
+  { id: "ash"      as const, label: "Ash",      Icon: Moon, bg: "#f1f5f9", textC: "#334155" },
+  { id: "obsidian" as const, label: "Obsidian", Icon: Moon, bg: "#0b0f19", textC: "#e5e7eb" },
 ];
 
 const S: Record<string, React.CSSProperties> = {
@@ -43,7 +43,7 @@ const S: Record<string, React.CSSProperties> = {
 
 export function Settings() {
   const navigate  = useNavigate();
-  const { profile, settings, updateSettings, signOut, user, resetAuthCache } = useAuth();
+  const { profile, settings, updateSettings, signOut, user, resetAuthCache, deleteAccount } = useAuth();
   const toast     = useToast();
   const [syncing,    setSyncing]    = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -70,12 +70,9 @@ export function Settings() {
     } finally { setSyncing(false); }
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setLoggingOut(true);
-    try {
-      await signOut();
-      navigate("/landing", { replace: true });
-    } catch { toast.error("Logout failed."); setLoggingOut(false); }
+    signOut(); // This function now handles everything (state clearing + redirect)
   };
 
   const Section = ({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) => (
@@ -183,8 +180,10 @@ export function Settings() {
                 </div>
               )}
               <div>
-                <div style={{ fontSize:15, fontWeight:700, color:"#0E1117" }}>{profile?.display_name ?? "Luminote User"}</div>
-                <div style={{ fontSize:13, color:"#9CA3AF" }}>{profile?.email ?? ""}</div>
+                <div style={{ fontSize:15, fontWeight:700, color:"#0E1117" }}>
+                  {profile?.display_name ?? user?.email?.split("@")[0] ?? "Luminote User"}
+                </div>
+                <div style={{ fontSize:13, color:"#9CA3AF" }}>{profile?.email ?? user?.email ?? ""}</div>
               </div>
             </div>
             <button type="button" onClick={handleLogout} disabled={loggingOut}
@@ -226,6 +225,35 @@ export function Settings() {
             <p style={{ fontSize:11, color:"#9CA3AF", marginTop:8, paddingLeft:4 }}>
               Use this if you are stuck or seeing the wrong account data.
             </p>
+          </Section>
+
+          {/* ── Danger Zone ────────────────────── */}
+          <Section icon={ShieldCheck} title="Danger Zone">
+             <div style={{ padding:16, background:"#FFF1F2", border:"1.5px solid #FECDD3", borderRadius:14 }}>
+               <div style={{ fontSize:14, fontWeight:700, color:"#BE123C", marginBottom:4 }}>Delete Account</div>
+               <div style={{ fontSize:12, color:"#E11D48", marginBottom:16, lineHeight:1.4 }}>
+                 Permanently remove your profile and all your data. This action is irreversible.
+               </div>
+               <button
+                 type="button"
+                 onClick={async () => {
+                   if (confirm("ARE YOU ABSOLUTELY SURE? All your notes, servers, and profile data will be permanently DELETED. This cannot be undone.")) {
+                     const secondCheck = prompt("To confirm, please type 'DELETE' below:");
+                     if (secondCheck === "DELETE") {
+                        try {
+                          await deleteAccount();
+                          toast.success("Account deleted successfully.");
+                        } catch (e: any) {
+                          toast.error("Failed to delete account: " + e.message);
+                        }
+                     }
+                   }
+                 }}
+                 style={{ width:"100%", padding:"12px", background:"#BE123C", color:"white", border:"none", borderRadius:10, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}
+               >
+                 Permanently Delete My Data
+               </button>
+             </div>
           </Section>
         </div>
 

@@ -1,5 +1,6 @@
 /* Tailwind + project theme */
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @source "../**/*.{js,ts,jsx,tsx}";
 
 @import "./theme.css";

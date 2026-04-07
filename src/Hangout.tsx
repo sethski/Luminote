@@ -5,7 +5,7 @@ import {
   Loader2, Search, MessageSquare, Clock,
   UserCheck, AlertCircle, Bell, Filter, Edit3,
   ThumbsUp, Share2, MoreHorizontal, Download,
-  FlaskConical, Sigma, Code, BookOpen, Settings, HelpCircle, User, FileText, UploadCloud
+  FlaskConical, Sigma, Code, BookOpen, Settings, HelpCircle, User, FileText, UploadCloud, LogOut
 } from "lucide-react";
 import { supabase, Friendship, Profile } from "./supabaseClient";
 import { useAuth } from "./AuthContext";
@@ -253,10 +253,8 @@ export function Hangout() {
       
       {/* SIDEBAR */}
       <div className="hg-sidebar">
-        <div style={{ padding: "0 12px", marginBottom: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-          <button onClick={() => navigate('/home')} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, color: "#475569", padding: "8px 12px", border: "1px solid #E2E8F0", borderRadius: 8, background: "white", cursor: "pointer", transition: "all 0.2s" }} onMouseOver={e => e.currentTarget.style.background = "#F8FAFC"} onMouseOut={e => e.currentTarget.style.background = "white"}>
-            <ArrowLeft size={16} /> Return to Dashboard
-          </button>
+        <div style={{ padding: "0 12px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
+          <ArrowLeft size={20} color="#065F46" cursor="pointer" onClick={() => navigate("/home")} />
           <div>
             <div className="hg-sidebar-title">Hangout</div>
             <div className="hg-sidebar-subtitle">Intellectual Sanctuary</div>
@@ -300,7 +298,7 @@ export function Hangout() {
         
         <button className="btn-primary" style={{ marginBottom: 24, width: "100%" }} onClick={() => setShowCreateModal(true)}>Create New Space</button>
         
-        <button className="hg-nav-item" style={{ marginBottom: 4 }}><Settings size={18} /> Settings</button>
+        <button className="hg-nav-item" style={{ marginBottom: 4 }} onClick={() => navigate("/home/settings")}><Settings size={18} /> Settings</button>
         <button className="hg-nav-item"><HelpCircle size={18} /> Help</button>
       </div>
 
@@ -481,7 +479,15 @@ export function Hangout() {
               <Bell size={20} />
               {incoming.length > 0 && <div style={{ position: "absolute", top: 0, right: 0, width: 8, height: 8, background: "#EF4444", borderRadius: "50%", border: "2px solid white" }} />}
             </div>
-            <img src={profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.display_name || user?.email}&background=E2E8F0&color=475569`} alt="" style={{ width: 36, height: 36, borderRadius: "50%" }} />
+            <img 
+              src={profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.display_name || user?.email}&background=E2E8F0&color=475569`} 
+              alt="" 
+              style={{ width: 36, height: 36, borderRadius: "50%", cursor: "pointer", border: "2px solid transparent" }} 
+              onClick={() => navigate("/home/settings")}
+              onMouseOver={e => e.currentTarget.style.borderColor = "#6EE7B7"}
+              onMouseOut={e => e.currentTarget.style.borderColor = "transparent"}
+              title="Settings"
+            />
           </div>
         </div>
 

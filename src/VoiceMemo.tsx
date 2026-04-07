@@ -10,9 +10,7 @@ import { useToast } from "./toast";
 function LuminoteLogo() {
   return (
     <div style={{ width:40, height:40, borderRadius:12, background:"#0E1117", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-        <path d="M8 2L14 10H10V14H6V10H2L8 2Z" fill="white" />
-      </svg>
+      <img src="/src/assets/logo.svg" alt="Luminote" width="18" height="18" style={{ objectFit: "contain" }} />
     </div>
   );
 }

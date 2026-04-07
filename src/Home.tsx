@@ -55,6 +55,7 @@ const HOME_CSS = `
 /* Scrollbar */
 .hm-scroll::-webkit-scrollbar{width:4px}
 .hm-scroll::-webkit-scrollbar-thumb{background:#E5E7EB;border-radius:4px}
+.dark .hm-scroll::-webkit-scrollbar-thumb{background:#475569;border-radius:4px}
 
 /* Tag chips */
 .hm-tag-chip{
@@ -68,6 +69,7 @@ const HOME_CSS = `
 /* Card hover */
 .hm-note-card{transition:transform .2s ease,box-shadow .2s ease}
 .hm-note-card:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.07)}
+.dark .hm-note-card:hover{box-shadow:0 8px 28px rgba(0,0,0,.3)}
 
 /* Quick action btn */
 .hm-qbtn{
@@ -79,8 +81,8 @@ const HOME_CSS = `
   background:rgba(255,255,255,.07);opacity:0;
   transition:opacity .2s;
 }
-.hm-qbtn:hover::before{opacity:1}
 .hm-qbtn:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,0,0,.12)}
+.dark .hm-qbtn:hover{box-shadow:0 12px 32px rgba(0,0,0,.3)}
 .hm-qbtn:active{transform:scale(.98)}
 
 /* AI chip */
@@ -92,22 +94,73 @@ const HOME_CSS = `
   cursor:pointer;transition:all .15s;
 }
 .hm-ai-chip:hover{background:linear-gradient(135deg,#E0E7FF,#EDE9FE);transform:translateY(-1px)}
+html[data-theme="obsidian"] .hm-ai-chip,
+html[data-theme="ash"] .hm-ai-chip{background:linear-gradient(135deg,#1e293b,#0f172a);border-color:#4f46e5;color:#c7d2fe}
+html[data-theme="obsidian"] .hm-ai-chip:hover,
+html[data-theme="ash"] .hm-ai-chip:hover{background:linear-gradient(135deg,#334155,#1e293b)}
 
 /* Template btn */
 .hm-tmpl{
-  flex:1;border:1.5px solid #E5E7EB;border-radius:14px;
+  flex:1;border:1.5px solid var(--border);border-radius:14px;
   padding:12px;cursor:pointer;text-align:left;
-  background:white;transition:all .2s;
+  background:var(--bg-main);transition:all .2s;
+  color:var(--text-primary);
   font-family:'DM Sans',sans-serif;
 }
-.hm-tmpl:hover{border-color:#4059FF;background:#F5F8FF;transform:translateY(-1px)}
-.hm-tmpl.selected{border-color:#4059FF;background:#EFF3FF}
+.hm-tmpl:hover{border-color:var(--accent);background:var(--bg-card);transform:translateY(-1px)}
+.hm-tmpl.selected{border-color:var(--accent);background:var(--bg-card)}
+
+html[data-theme="obsidian"] .hm-tmpl,
+html[data-theme="ash"] .hm-tmpl {
+  background: var(--bg-main);
+  border-color: var(--border);
+}
+
+/* Modal footer actions */
+.hm-footer-secondary {
+  color: var(--text-secondary);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: 600;
+  transition: color .2s, background-color .2s, transform .15s;
+}
+.hm-footer-secondary:hover {
+  color: var(--text-primary);
+  background: rgba(100, 116, 139, 0.14);
+}
+.hm-footer-secondary:active {
+  transform: translateY(1px);
+  background: rgba(100, 116, 139, 0.22);
+}
+
+.hm-footer-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(79, 126, 255, 0.28);
+  transition: transform .15s, filter .2s, box-shadow .2s;
+}
+.hm-footer-primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 12px 28px rgba(79, 126, 255, 0.35);
+}
+.hm-footer-primary:active {
+  transform: translateY(1px) scale(0.99);
+  filter: brightness(0.96);
+  box-shadow: 0 6px 14px rgba(79, 126, 255, 0.25);
+}
 `;
 
 /* ─── Template definitions ────────────────────── */
 const TEMPLATES = [
   { id: "blank",   icon: <AlignLeft size={16} />,  label: "Blank",    starter: "" },
-  { id: "bullet",  icon: <List size={16} />,        label: "Bullet",   starter: "- \n- \n- \n" },
+  { id: "bullet",  icon: <List size={16} />,       label: "Bullet",   starter: "- \n- \n- \n" },
   { id: "meeting", icon: <FileText size={16} />,    label: "Meeting",  starter: "## Agenda\n\n- \n\n## Notes\n\n## Action Items\n\n- [ ] \n" },
   { id: "study",   icon: <Lightbulb size={16} />,   label: "Study",    starter: "## Topic\n\n## Key Concepts\n\n## Questions\n\n## Summary\n" },
 ];
@@ -212,21 +265,23 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="hm-overlay" onClick={handleBackdrop} role="dialog" aria-modal="true" aria-label="Create new note">
       <div
-        className="hm-modal-pop bg-white rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,.18)] w-full max-w-[520px] overflow-hidden"
+        className="hm-modal-pop rounded-[24px] shadow-[0_32px_80px_rgba(0,0,0,.18)] w-full max-w-[520px] overflow-hidden"
+        style={{ backgroundColor: 'var(--bg-card)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[#F3F4F6]">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-[#4059FF] flex items-center justify-center">
               <Plus size={16} color="white" />
             </div>
-            <span className="hm-serif text-lg text-[#0E1117]">New Note</span>
+            <span className="hm-serif text-lg" style={{ color: 'var(--text-primary)' }}>New Note</span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+            style={{ color: 'var(--text-secondary)' }}
             aria-label="Close modal"
           >
             <X size={16} />
@@ -237,7 +292,7 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
 
           {/* Title input */}
           <div>
-            <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-primary)' }}>
               Title
             </label>
             <div className="relative">
@@ -247,7 +302,7 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
                 value={title}
                 onChange={e => { setTitle(e.target.value); setAiTags([]); setTitleHint(""); }}
                 placeholder="What's on your mind?"
-                className="w-full px-4 py-3 rounded-[14px] border border-[#E5E7EB] bg-[#FAFAFA] text-[#0E1117] placeholder-gray-400 outline-none focus:border-[#4059FF] focus:bg-white focus:ring-4 focus:ring-[#4059FF]/10 transition-all text-sm"
+                className="w-full px-4 py-3 rounded-[14px] border border-[#E5E7EB] bg-[#FAFAFA] text-[#0E1117] placeholder:text-slate-500 outline-none focus:border-[#4059FF] focus:bg-white focus:ring-4 focus:ring-[#4059FF]/10 transition-all text-sm"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
               />
             </div>
@@ -282,7 +337,7 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
               {aiState === "loading" ? "Analyzing…" : aiState === "success" ? "Tags suggested!" : "AI Suggest Tags"}
             </button>
             {aiTags.length > 0 && (
-              <span className="text-xs text-[#9CA3AF]">
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 Suggested: {aiTags.join(", ")}
               </span>
             )}
@@ -290,7 +345,7 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
 
           {/* Tags */}
           <div>
-            <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-primary)' }}>
               Tags <span className="font-normal normal-case">(select all that apply)</span>
             </label>
             <div className="flex flex-wrap gap-2">
@@ -323,7 +378,7 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
 
           {/* Template */}
           <div>
-            <label className="block text-xs font-bold text-[#6B7280] uppercase tracking-wider mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-primary)' }}>
               Template
             </label>
             <div className="flex gap-2">
@@ -338,7 +393,7 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
                   <div className="flex items-center gap-1.5 mb-1 text-[#4059FF]">
                     {t.icon}
                   </div>
-                  <div className="text-xs font-semibold text-[#0E1117]">{t.label}</div>
+                  <div className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t.label}</div>
                 </button>
               ))}
             </div>
@@ -346,18 +401,18 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-[#F3F4F6] flex items-center justify-between bg-[#FAFAFA]">
+        <div className="px-6 py-4 border-t flex items-center justify-between" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-main)' }}>
           <button
             type="button"
             onClick={onClose}
-            className="text-sm text-[#6B7280] hover:text-[#0E1117] transition-colors font-medium"
+            className="hm-footer-secondary text-sm"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleCreate}
-            className="flex items-center gap-2 bg-[#0E1117] text-white text-sm font-semibold px-5 py-2.5 rounded-[12px] hover:bg-[#1e2330] transition-colors shadow-md"
+            className="hm-footer-primary"
             style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
             <Zap size={14} /> Open Editor
@@ -424,7 +479,8 @@ export function Home() {
     return (
       <Link
         to={`/home/editor/${note.id}`}
-        className="hm-note-card block bg-white rounded-[18px] p-5 border border-[#EBEBEB] group"
+        className="hm-note-card block rounded-[18px] p-5 border group transition-colors duration-300"
+        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
       >
         {note.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
@@ -442,22 +498,22 @@ export function Home() {
             })}
           </div>
         )}
-        <h3 className="text-[#0E1117] font-semibold text-sm mb-2 line-clamp-1 leading-snug">
+        <h3 className="font-semibold text-sm mb-2 line-clamp-1 leading-snug transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>
           {note.title || "Untitled Note"}
         </h3>
         {preview ? (
-          <p className="text-[#9CA3AF] text-xs line-clamp-2 leading-relaxed mb-4">
+          <p className="text-xs line-clamp-2 leading-relaxed mb-4 transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>
             {preview.length > 100 ? preview.slice(0, 100) + "…" : preview}
           </p>
         ) : (
-          <p className="text-[#D1D5DB] text-xs italic mb-4">No content yet</p>
+          <p className="text-xs italic mb-4 transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>No content yet</p>
         )}
-        <div className="flex items-center justify-between pt-3 border-t border-[#F3F4F6]">
-          <span className="text-[10px] text-[#C4C9D4] font-medium">
+        <div className="flex items-center justify-between pt-3 transition-colors duration-300" style={{ borderTopColor: 'var(--border)', borderTopWidth: '1px' }}>
+          <span className="text-[10px] font-medium transition-colors duration-300" style={{ color: 'var(--text-tertiary)' }}>
             {format(getNoteDate(note), "d MMM")}
           </span>
           {words > 0 && (
-            <span className="flex items-center gap-1 text-[10px] text-[#C4C9D4]">
+            <span className="flex items-center gap-1 text-[10px] transition-colors duration-300" style={{ color: 'var(--text-tertiary)' }}>
               <Type size={10} /> {words} words
             </span>
           )}
@@ -467,7 +523,7 @@ export function Home() {
   };
 
   return (
-    <div className="hm-root h-full flex flex-col overflow-auto bg-[#FAFAF8]">
+    <div className="hm-root h-full flex flex-col overflow-auto transition-colors duration-300" style={{ backgroundColor: 'var(--bg-main)', color: 'var(--text-primary)' }}>
       <style>{HOME_CSS}</style>
 
       {/* New Note Modal */}
@@ -480,22 +536,28 @@ export function Home() {
         {/* ── Greeting + mobile search ─────────── */}
         <div className="hm-a1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="hm-serif text-2xl md:text-3xl text-[#0E1117] leading-tight">
+            <h1 className="hm-serif text-2xl md:text-3xl leading-tight transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>
               Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"} 👋
             </h1>
-            <p className="text-sm text-[#9CA3AF] mt-1">
+            <p className="text-sm mt-1 transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>
               {notes.length} note{notes.length !== 1 ? "s" : ""} in your library
             </p>
           </div>
           {/* Mobile search — BUG FIX: now wired to setSearchQuery */}
           <div className="md:hidden relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-300" size={16} style={{ color: 'var(--text-secondary)' }} />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}   /* ← was missing */
               placeholder="Search notes…"
-              className="w-full pl-10 pr-4 py-2.5 bg-white rounded-2xl border border-[#EBEBEB] text-sm text-[#0E1117] placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#4059FF]/20 focus:border-[#4059FF] transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-2xl border text-sm outline-none focus:ring-2 focus:ring-[#4059FF]/20 transition-all duration-300"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                borderColor: 'var(--border)',
+                '--tw-ring-color': 'rgb(79 89 255 / 0.2)'
+              }}
             />
           </div>
         </div>
@@ -506,44 +568,47 @@ export function Home() {
           <button
             type="button"
             onClick={() => setShowNewNoteModal(true)}   /* ← was inline addNote without feedback */
-            className="hm-qbtn bg-[#0E1117] text-white p-5 rounded-[20px] flex items-center gap-4 text-left"
+            className="hm-qbtn p-5 rounded-[20px] flex items-center gap-4 text-left transition-colors duration-300"
+            style={{ backgroundColor: 'var(--accent)', color: '#ffffff' }}
             aria-label="Create new note"
           >
-            <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
               <Plus size={22} />
             </div>
             <div>
               <div className="font-bold text-base">New Note</div>
-              <div className="text-white/50 text-sm">with AI suggestions</div>
+              <div className="text-white/85 text-sm transition-colors duration-300">with AI suggestions</div>
             </div>
-            <Sparkles size={14} className="ml-auto text-white/30" />
+            <Sparkles size={14} className="ml-auto text-white/80" />
           </button>
 
           <button
             type="button"
             onClick={() => navigate("/home/upload-image")}
-            className="hm-qbtn bg-white border border-[#EBEBEB] p-5 rounded-[20px] flex items-center gap-4 text-left"
+            className="hm-qbtn border p-5 rounded-[20px] flex items-center gap-4 text-left transition-colors duration-300"
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
           >
-            <div className="w-11 h-11 rounded-xl bg-[#EFF3FF] flex items-center justify-center shrink-0">
-              <ImageIcon size={20} color="#4059FF" />
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-main)' }}>
+              <ImageIcon size={20} color="#4059FF" className="dark:text-blue-400" />
             </div>
             <div>
-              <div className="font-bold text-sm text-[#0E1117]">Upload Image</div>
-              <div className="text-[#9CA3AF] text-xs">OCR Text Extraction</div>
+              <div className="font-bold text-sm transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>Upload Image</div>
+              <div className="text-xs transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>OCR Text Extraction</div>
             </div>
           </button>
 
           <button
             type="button"
             onClick={() => navigate("/home/voice-memo")}
-            className="hm-qbtn bg-white border border-[#EBEBEB] p-5 rounded-[20px] flex items-center gap-4 text-left"
+            className="hm-qbtn border p-5 rounded-[20px] flex items-center gap-4 text-left transition-colors duration-300"
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
           >
-            <div className="w-11 h-11 rounded-xl bg-[#FDF2F8] flex items-center justify-center shrink-0">
-              <Mic size={20} color="#C026D3" />
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-main)' }}>
+              <Mic size={20} color="#C026D3" className="dark:text-pink-400" />
             </div>
             <div>
-              <div className="font-bold text-sm text-[#0E1117]">Voice Memo</div>
-              <div className="text-[#9CA3AF] text-xs">Speech to Text AI</div>
+              <div className="font-bold text-sm transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>Voice Memo</div>
+              <div className="text-xs transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>Speech to Text AI</div>
             </div>
           </button>
         </div>
@@ -555,11 +620,11 @@ export function Home() {
           <div className="lg:col-span-4 space-y-6">
 
             {/* ── Calendar ─────────────────────── */}
-            <div className="bg-white rounded-[20px] border border-[#EBEBEB] p-5">
+            <div className="rounded-[20px] border p-5 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <CalendarIcon size={16} color="#4059FF" />
-                  <span className="font-semibold text-sm text-[#0E1117]">
+                  <CalendarIcon size={16} color="#4059FF" className="dark:text-blue-400" />
+                  <span className="font-semibold text-sm transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>
                     {format(calMonth, "MMMM yyyy")}
                   </span>
                 </div>
@@ -570,7 +635,8 @@ export function Home() {
                   <button
                     type="button"
                     onClick={e => { e.stopPropagation(); setCalMonth(subMonths(calMonth, 1)); }}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-80 transition-colors duration-300"
+                    style={{ color: 'var(--text-secondary)' }}
                     aria-label="Previous month"
                   >
                     <ChevronLeft size={14} />
@@ -578,7 +644,8 @@ export function Home() {
                   <button
                     type="button"
                     onClick={e => { e.stopPropagation(); setCalMonth(addMonths(calMonth, 1)); }}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-80 transition-colors duration-300"
+                    style={{ color: 'var(--text-secondary)' }}
                     aria-label="Next month"
                   >
                     <ChevronRight size={14} />
@@ -589,7 +656,7 @@ export function Home() {
               {/* Day headers */}
               <div className="grid grid-cols-7 mb-2">
                 {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d => (
-                  <div key={d} className="text-center text-[9px] font-bold text-[#C4C9D4] uppercase tracking-wider py-1">
+                  <div key={d} className="text-center text-[9px] font-bold uppercase tracking-wider py-1 transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>
                     {d}
                   </div>
                 ))}
@@ -608,9 +675,13 @@ export function Home() {
                       onClick={() => navigate("/home/calendar")}
                       className={`
                         relative flex flex-col items-center py-1.5 rounded-lg text-xs font-medium transition-colors
-                        ${!isCurrentMonth  ? "text-[#E5E7EB]" : "text-[#374151]"}
-                        ${isToday          ? "bg-[#0E1117] text-white rounded-lg" : "hover:bg-[#F3F4F6]"}
+                        ${!isCurrentMonth  ? "" : ""}
+                        ${isToday          ? "text-white rounded-lg" : ""}
                       `}
+                      style={{
+                        backgroundColor: isToday ? 'var(--accent)' : 'transparent',
+                        color: !isCurrentMonth ? 'var(--text-tertiary)' : isToday ? 'white' : 'var(--text-primary)'
+                      }}
                     >
                       {format(day, "d")}
                       {hasNote && isCurrentMonth && !isToday && (
@@ -624,7 +695,8 @@ export function Home() {
               <button
                 type="button"
                 onClick={() => navigate("/home/calendar")}
-                className="mt-3 w-full text-center text-xs text-[#4059FF] hover:underline font-medium"
+                className="mt-3 w-full text-center text-xs hover:underline font-medium transition-colors duration-300"
+                style={{ color: 'var(--accent)' }}
               >
                 Open full calendar →
               </button>
@@ -633,23 +705,24 @@ export function Home() {
             {/* ── Reminders ────────────────────── */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-bold text-sm text-[#0E1117]">Upcoming Reminders</h2>
+                <h2 className="font-bold text-sm transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>Upcoming Reminders</h2>
                 {/* BUG FIX: was a dead button with no destination */}
                 <button
                   type="button"
                   onClick={() => navigate("/home/calendar")}
-                  className="text-xs text-[#4059FF] hover:underline font-medium"
+                  className="text-xs hover:underline font-medium transition-colors duration-300"
+                  style={{ color: 'var(--accent)' }}
                 >
                   View all
                 </button>
               </div>
 
               {reminders.length === 0 ? (
-                <div className="bg-white rounded-[18px] border border-[#EBEBEB] p-6 flex flex-col items-center justify-center text-center">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center mb-3">
+                <div className="rounded-[18px] border p-6 flex flex-col items-center justify-center text-center transition-colors duration-300" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-main)' }}>
                     <Clock size={20} color="#F97316" />
                   </div>
-                  <p className="text-xs text-[#9CA3AF]">No upcoming reminders</p>
+                  <p className="text-xs transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>No upcoming reminders</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -657,26 +730,28 @@ export function Home() {
                     <div
                       key={r.id}
                       onClick={() => toggleReminder(r.id)}
-                      className={`bg-white rounded-[16px] border border-[#EBEBEB] p-4 flex items-center gap-3 cursor-pointer transition-all hover:border-[#D1D5DB] ${r.completed ? "opacity-50" : ""}`}
+                      className={`rounded-[16px] border p-4 flex items-center gap-3 cursor-pointer transition-all ${r.completed ? "opacity-50" : ""}`}
+                      style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
                     >
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${r.completed ? "bg-gray-100" : "bg-orange-50"}`}>
-                        <Clock size={14} color={r.completed ? "#9CA3AF" : "#F97316"} />
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--bg-main)' }}>
+                        <Clock size={14} color={r.completed ? "var(--text-secondary)" : "#F97316"} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-semibold truncate ${r.completed ? "line-through text-[#9CA3AF]" : "text-[#0E1117]"}`}>
+                        <p className={`text-xs font-semibold truncate transition-colors duration-300 ${r.completed ? "line-through" : ""}`} style={{ color: r.completed ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
                           {r.title}
                         </p>
-                        <p className="text-[10px] text-[#9CA3AF]">
+                        <p className="text-[10px] transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>
                           {format(new Date(r.date), "MMM d")} · {r.time}
                         </p>
                       </div>
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${r.completed ? "bg-emerald-500 border-emerald-500" : "border-[#D1D5DB]"}`}>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${r.completed ? "bg-emerald-500 border-emerald-500" : ""}`} style={{ borderColor: r.completed ? 'emerald-500' : 'var(--border)' }}>
                         {r.completed && <Check size={9} color="white" strokeWidth={3} />}
                       </div>
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); removeReminder(r.id); }}
-                        className="w-6 h-6 rounded-lg flex items-center justify-center text-[#D1D5DB] hover:text-red-400 hover:bg-red-50 transition-colors"
+                        className="w-6 h-6 rounded-lg flex items-center justify-center hover:opacity-70 transition-colors"
+                        style={{ color: 'var(--text-secondary)' }}
                         aria-label="Remove reminder"
                       >
                         <X size={12} />
@@ -691,11 +766,12 @@ export function Home() {
           {/* Right — Recent Notes */}
           <div className="lg:col-span-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-[#0E1117]">Recent Notes</h2>
+              <h2 className="font-bold transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>Recent Notes</h2>
               <button
                 type="button"
                 onClick={() => navigate("/home/all-notes")}
-                className="text-xs text-[#4059FF] hover:underline font-semibold flex items-center gap-1"
+                className="text-xs hover:underline font-semibold flex items-center gap-1 transition-colors duration-300"
+                style={{ color: 'var(--accent)' }}
               >
                 View all <ArrowRight size={12} />
               </button>
@@ -708,21 +784,21 @@ export function Home() {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-[20px] border border-dashed border-[#E5E7EB]">
-                <div className="w-14 h-14 bg-[#F3F4F6] rounded-2xl flex items-center justify-center mb-4">
-                  <FileText size={22} color="#9CA3AF" />
+              <div className="flex flex-col items-center justify-center py-20 text-center rounded-[20px] border border-dashed transition-colors duration-300" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-main)' }}>
+                  <FileText size={22} style={{ color: 'var(--text-secondary)' }} />
                 </div>
-                <p className="font-semibold text-[#0E1117] mb-1">
+                <p className="font-semibold mb-1 transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>
                   {searchQuery ? "No notes found" : "Your library is empty"}
                 </p>
-                <p className="text-xs text-[#9CA3AF] max-w-[200px] mb-4">
+                <p className="text-xs max-w-[200px] mb-4 transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>
                   {searchQuery ? "Try different search terms." : "Create your first note to get started."}
                 </p>
                 {!searchQuery && (
                   <button
                     type="button"
                     onClick={() => setShowNewNoteModal(true)}
-                    className="flex items-center gap-1.5 bg-[#0E1117] text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-[#1e2330] transition-colors"
+                    className="flex items-center gap-1.5 bg-[#0E1117] dark:bg-slate-700 text-white dark:text-slate-100 text-xs font-semibold px-4 py-2 rounded-xl hover:bg-[#1e2330] dark:hover:bg-slate-600 transition-colors duration-300"
                   >
                     <Plus size={13} /> New Note
                   </button>

@@ -37,31 +37,78 @@ export function NotesProvider({ children }: { children: ReactNode }) {
   // Cache timestamp to avoid redundant fetches
   const lastFetch = useRef<number>(0);
 
+  const isAuthRaceError = (error: any) => {
+    const text = `${error?.message ?? ""} ${error?.details ?? ""}`.toLowerCase();
+    return (
+      text.includes("jwt") ||
+      text.includes("token") ||
+      text.includes("auth session") ||
+      text.includes("not authenticated") ||
+      text.includes("401")
+    );
+  };
+
   /* ── Fetch notes (with 30s cache) ─────────────── */
   const fetchNotes = useCallback(async (force = false) => {
     if (!user) { setNotes([]); setNotesLoading(false); return; }
     if (!force && Date.now() - lastFetch.current < 30_000) return;
     lastFetch.current = Date.now();
     setNotesLoading(true);
-    const { data, error } = await supabase
+    const query = () => supabase
       .from("notes")
       .select("*")
       .eq("user_id", user.id)
       .eq("is_deleted", false)
       .order("updated_at", { ascending: false });
-    if (!error && data) setNotes(data as Note[]);
+
+    let { data, error } = await query();
+
+    if (error && isAuthRaceError(error)) {
+      console.warn("[NotesDebug] Notes fetch auth race detected, retrying once...");
+      const { data: authData } = await supabase.auth.getSession();
+      if (authData.session) {
+        const retry = await query();
+        data = retry.data;
+        error = retry.error;
+      }
+    }
+
+    if (!error && data) {
+      setNotes(data as Note[]);
+    } else if (error) {
+      console.error("[NotesDebug] Failed to fetch notes:", error);
+      lastFetch.current = 0;
+    }
+
     setNotesLoading(false);
   }, [user?.id]);
 
   /* ── Fetch reminders ──────────────────────────── */
   const fetchReminders = useCallback(async () => {
     if (!user) { setReminders([]); return; }
-    const { data, error } = await supabase
+    const query = () => supabase
       .from("reminders")
       .select("*")
       .eq("user_id", user.id)
       .order("date", { ascending: true });
-    if (!error && data) setReminders(data as Reminder[]);
+
+    let { data, error } = await query();
+
+    if (error && isAuthRaceError(error)) {
+      console.warn("[NotesDebug] Reminders fetch auth race detected, retrying once...");
+      const { data: authData } = await supabase.auth.getSession();
+      if (authData.session) {
+        const retry = await query();
+        data = retry.data;
+        error = retry.error;
+      }
+    }
+
+    if (!error && data) {
+      setReminders(data as Reminder[]);
+    } else if (error) {
+      console.error("[NotesDebug] Failed to fetch reminders:", error);
+    }
   }, [user?.id]);
 
   /* ── Bootstrap ────────────────────────────────── */
@@ -69,6 +116,22 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     fetchNotes(true);
     fetchReminders();
   }, [fetchNotes, fetchReminders]);
+
+  // Rehydrate user data when auth session becomes fully available after refresh.
+  useEffect(() => {
+    if (!user) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      if (!s?.user || s.user.id !== user.id) return;
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        void fetchNotes(true);
+        void fetchReminders();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user?.id, fetchNotes, fetchReminders]);
 
   /* ── Real-time notes subscription ────────────── */
   useEffect(() => {
