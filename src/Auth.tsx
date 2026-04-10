@@ -46,6 +46,13 @@ const AUTH_CSS = `
 }
 .p-btn:hover:not(:disabled) { opacity:0.9; transform:translateY(-1px); box-shadow:0 8px 24px rgba(0,0,0,.25); }
 .p-btn:disabled { opacity:.6; cursor:not-allowed; }
+
+/* Touch-first controls and compact spacing on narrow screens. */
+@media (max-width: 480px) {
+  .auth-input,
+  .g-btn,
+  .p-btn { min-height: 44px; }
+}
 `;
 
 function GIcon() {
@@ -92,7 +99,7 @@ export function Auth() {
 
   React.useEffect(() => {
     if (!loading && user) {
-      navigate("/", { replace: true });
+      navigate("/home", { replace: true });
     }
   }, [user, loading, navigate]);
 
@@ -118,7 +125,9 @@ function LoginView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void;
     setErrMsg(""); setBusy("email");
     try {
       await signInWithEmail(d.email, d.password);
-      navigate((location.state as any)?.from?.pathname ?? "/", { replace:true });
+      const stateFrom = (location.state as any)?.from;
+      const returnTo = stateFrom ? `${stateFrom.pathname ?? ""}${stateFrom.search ?? ""}${stateFrom.hash ?? ""}` : "/home";
+      navigate(returnTo, { replace:true });
     } catch(e:any) {
       const msg = e?.message?.includes("Invalid") ? "Incorrect email or password." : (e?.message ?? "Sign in failed.");
       setErrMsg(msg); setShake(true); setTimeout(() => setShake(false), 400);
@@ -127,7 +136,11 @@ function LoginView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void;
 
   const onGoogle = async () => {
     setBusy("google");
-    try { await signInWithGoogle(); }
+    try {
+      const stateFrom = (location.state as any)?.from;
+      const returnTo = stateFrom ? `${stateFrom.pathname ?? ""}${stateFrom.search ?? ""}${stateFrom.hash ?? ""}` : "/home";
+      await signInWithGoogle(returnTo);
+    }
     catch(e:any) { toast.error(e?.message ?? "Google sign-in failed."); setBusy(null); }
   };
 
@@ -222,6 +235,7 @@ type SignUpData = { name:string; email:string; password:string; confirm:string }
 
 function SignUpView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void; bootError:string|null; resetAuthCache:()=>void }) {
   const { signUpWithEmail, signInWithGoogle } = useAuth();
+  const location = useLocation();
   const toast = useToast();
   const [showPw, setShowPw] = useState(false);
   const [showCf, setShowCf] = useState(false);
@@ -239,7 +253,11 @@ function SignUpView({ onSwitch, bootError, resetAuthCache }: { onSwitch:()=>void
 
   const onGoogle = async () => {
     setBusy("google");
-    try { await signInWithGoogle(); }
+    try {
+      const stateFrom = (location.state as any)?.from;
+      const returnTo = stateFrom ? `${stateFrom.pathname ?? ""}${stateFrom.search ?? ""}${stateFrom.hash ?? ""}` : "/home";
+      await signInWithGoogle(returnTo);
+    }
     catch(e:any) { toast.error(e?.message ?? "Google sign-in failed."); setBusy(null); }
   };
 

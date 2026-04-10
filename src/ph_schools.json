@@ -1,0 +1,1594 @@
+[
+  {
+    "id": 1,
+    "name": "Abra State Institute of Sciences and Technology",
+    "short_name": "ASIST",
+    "type": "State University/College",
+    "region": "CAR",
+    "logo": "https://asist.edu.ph/wp-content/uploads/2020/08/asist-logo.png"
+  },
+  {
+    "id": 2,
+    "name": "Adamson University",
+    "short_name": "AdU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/8/8e/Adamson_University_logo.png/200px-Adamson_University_logo.png"
+  },
+  {
+    "id": 3,
+    "name": "AMA Computer University",
+    "short_name": "AMACU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/a/a7/AMA_Computer_University_logo.png/200px-AMA_Computer_University_logo.png"
+  },
+  {
+    "id": 4,
+    "name": "Angeles University Foundation",
+    "short_name": "AUF",
+    "type": "Private University",
+    "region": "Region III",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/2/26/AUF_seal.png/200px-AUF_seal.png"
+  },
+  {
+    "id": 5,
+    "name": "Assumption College",
+    "short_name": "AC",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/0/06/Assumption_College_seal.png/200px-Assumption_College_seal.png"
+  },
+  {
+    "id": 6,
+    "name": "Ateneo de Davao University",
+    "short_name": "ADDU",
+    "type": "Private University",
+    "region": "Region XI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/6/6d/Ateneo_de_Davao_University_logo.png/200px-Ateneo_de_Davao_University_logo.png"
+  },
+  {
+    "id": 7,
+    "name": "Ateneo de Manila University",
+    "short_name": "ADMU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/Ateneo_de_Manila_University_seal.svg/200px-Ateneo_de_Manila_University_seal.svg.png"
+  },
+  {
+    "id": 8,
+    "name": "Ateneo de Naga University",
+    "short_name": "ANU",
+    "type": "Private University",
+    "region": "Region V",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/1/17/Ateneo_de_Naga_University_seal.png/200px-Ateneo_de_Naga_University_seal.png"
+  },
+  {
+    "id": 9,
+    "name": "Ateneo de Zamboanga University",
+    "short_name": "AdZU",
+    "type": "Private University",
+    "region": "Region IX",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e1/AdZU_Seal.png/200px-AdZU_Seal.png"
+  },
+  {
+    "id": 10,
+    "name": "Aurora State College of Technology",
+    "short_name": "ASCOT",
+    "type": "State University/College",
+    "region": "Region III",
+    "logo": "https://ascot.edu.ph/wp-content/uploads/2021/08/ascot-logo.png"
+  },
+  {
+    "id": 11,
+    "name": "Bataan Peninsula State University",
+    "short_name": "BPSU",
+    "type": "State University/College",
+    "region": "Region III",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e1/Bataan_Peninsula_State_University.png/200px-Bataan_Peninsula_State_University.png"
+  },
+  {
+    "id": 12,
+    "name": "Batangas State University",
+    "short_name": "BatStateU",
+    "type": "State University/College",
+    "region": "Region IV-A",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/b/b3/Batangas_State_University_logo.png/200px-Batangas_State_University_logo.png"
+  },
+  {
+    "id": 13,
+    "name": "Benguet State University",
+    "short_name": "BSU",
+    "type": "State University/College",
+    "region": "CAR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/Benguet_State_University_logo.jpg/200px-Benguet_State_University_logo.jpg"
+  },
+  {
+    "id": 14,
+    "name": "Bicol University",
+    "short_name": "BU",
+    "type": "State University/College",
+    "region": "Region V",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/a/a3/Bicol_University_logo.png/200px-Bicol_University_logo.png"
+  },
+  {
+    "id": 15,
+    "name": "Bohol Island State University",
+    "short_name": "BISU",
+    "type": "State University/College",
+    "region": "Region VII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/f/f0/Bohol_Island_State_University_logo.png/200px-Bohol_Island_State_University_logo.png"
+  },
+  {
+    "id": 16,
+    "name": "Bukidnon State University",
+    "short_name": "BukSU",
+    "type": "State University/College",
+    "region": "Region X",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/9/91/Bukidnon_State_University_logo.png/200px-Bukidnon_State_University_logo.png"
+  },
+  {
+    "id": 17,
+    "name": "Bulacan State University",
+    "short_name": "BulSU",
+    "type": "State University/College",
+    "region": "Region III",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/c/c4/Bulacan_State_University_logo.png/200px-Bulacan_State_University_logo.png"
+  },
+  {
+    "id": 18,
+    "name": "Cagayan State University",
+    "short_name": "CSU",
+    "type": "State University/College",
+    "region": "Region II",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/4/4e/Cagayan_State_University_logo.png/200px-Cagayan_State_University_logo.png"
+  },
+  {
+    "id": 19,
+    "name": "Camarines Norte State College",
+    "short_name": "CNSC",
+    "type": "State University/College",
+    "region": "Region V",
+    "logo": "https://cnsc.edu.ph/wp-content/uploads/2021/07/cnsc-logo.png"
+  },
+  {
+    "id": 20,
+    "name": "Camarines Sur Polytechnic Colleges",
+    "short_name": "CSPC",
+    "type": "State University/College",
+    "region": "Region V",
+    "logo": "https://cspc.edu.ph/wp-content/uploads/2020/01/cspc-logo.png"
+  },
+  {
+    "id": 21,
+    "name": "Capiz State University",
+    "short_name": "CapSU",
+    "type": "State University/College",
+    "region": "Region VI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/5/58/Capiz_State_University_logo.png/200px-Capiz_State_University_logo.png"
+  },
+  {
+    "id": 22,
+    "name": "Caraga State University",
+    "short_name": "CSU",
+    "type": "State University/College",
+    "region": "Region XIII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/2/2a/Caraga_State_University_logo.png/200px-Caraga_State_University_logo.png"
+  },
+  {
+    "id": 23,
+    "name": "Carlos Hilado Memorial State University",
+    "short_name": "CHMSC",
+    "type": "State University/College",
+    "region": "Region VI",
+    "logo": "https://chmsc.edu.ph/wp-content/uploads/2021/07/chmsc-logo.png"
+  },
+  {
+    "id": 24,
+    "name": "Cavite State University",
+    "short_name": "CavSU",
+    "type": "State University/College",
+    "region": "Region IV-A",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/33/Cavite_State_University_logo.png/200px-Cavite_State_University_logo.png"
+  },
+  {
+    "id": 25,
+    "name": "Cebu Normal University",
+    "short_name": "CNU",
+    "type": "State University/College",
+    "region": "Region VII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/4/4d/Cebu_Normal_University_logo.png/200px-Cebu_Normal_University_logo.png"
+  },
+  {
+    "id": 26,
+    "name": "Cebu Technological University",
+    "short_name": "CTU",
+    "type": "State University/College",
+    "region": "Region VII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/7/73/Cebu_Technological_University_logo.png/200px-Cebu_Technological_University_logo.png"
+  },
+  {
+    "id": 27,
+    "name": "Central Luzon State University",
+    "short_name": "CLSU",
+    "type": "State University/College",
+    "region": "Region III",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/1/1f/Central_Luzon_State_University_logo.png/200px-Central_Luzon_State_University_logo.png"
+  },
+  {
+    "id": 28,
+    "name": "Central Mindanao University",
+    "short_name": "CMU",
+    "type": "State University/College",
+    "region": "Region X",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/1/17/Central_Mindanao_University_logo.png/200px-Central_Mindanao_University_logo.png"
+  },
+  {
+    "id": 29,
+    "name": "Central Philippine University",
+    "short_name": "CPU",
+    "type": "Private University",
+    "region": "Region VI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/2/28/Central_Philippine_University_seal.png/200px-Central_Philippine_University_seal.png"
+  },
+  {
+    "id": 30,
+    "name": "Centro Escolar University",
+    "short_name": "CEU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/f/fe/Centro_Escolar_University_logo.png/200px-Centro_Escolar_University_logo.png"
+  },
+  {
+    "id": 31,
+    "name": "City College of Calamba",
+    "short_name": "CCC",
+    "type": "Local University/College",
+    "region": "Region IV-A",
+    "logo": "https://ccc.edu.ph/assets/images/ccc-logo.png"
+  },
+  {
+    "id": 32,
+    "name": "Colegio de San Juan de Letran",
+    "short_name": "Letran",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/c/cb/Letran_logo.png/200px-Letran_logo.png"
+  },
+  {
+    "id": 33,
+    "name": "College of the Holy Spirit Manila",
+    "short_name": "CHS",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://chs.edu.ph/wp-content/uploads/2021/07/chs-logo.png"
+  },
+  {
+    "id": 34,
+    "name": "Cor Jesu College",
+    "short_name": "CJC",
+    "type": "Private University",
+    "region": "Region XI",
+    "logo": "https://cjc.edu.ph/wp-content/uploads/2021/07/cjc-logo.png"
+  },
+  {
+    "id": 35,
+    "name": "Cotabato City State Polytechnic College",
+    "short_name": "CCSPC",
+    "type": "State University/College",
+    "region": "BARMM",
+    "logo": "https://ccspc.edu.ph/wp-content/uploads/2021/06/ccspc-logo.png"
+  },
+  {
+    "id": 36,
+    "name": "Cotabato Foundation College of Science and Technology",
+    "short_name": "CFCST",
+    "type": "State University/College",
+    "region": "Region XII",
+    "logo": "https://cfcst.edu.ph/assets/images/cfcst-logo.png"
+  },
+  {
+    "id": 37,
+    "name": "Davao del Norte State College",
+    "short_name": "DNSC",
+    "type": "State University/College",
+    "region": "Region XI",
+    "logo": "https://dnsc.edu.ph/assets/images/dnsc-logo.png"
+  },
+  {
+    "id": 38,
+    "name": "Davao Medical School Foundation",
+    "short_name": "DMSF",
+    "type": "Private University",
+    "region": "Region XI",
+    "logo": "https://dmsf.edu.ph/assets/images/dmsf-logo.png"
+  },
+  {
+    "id": 39,
+    "name": "Davao Oriental State University",
+    "short_name": "DOrSU",
+    "type": "State University/College",
+    "region": "Region XI",
+    "logo": "https://dorsu.edu.ph/wp-content/uploads/2021/01/dorsu-logo.png"
+  },
+  {
+    "id": 40,
+    "name": "De La Salle Araneta University",
+    "short_name": "DLSAU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://dlsau.edu.ph/wp-content/uploads/2020/08/dlsau-logo.png"
+  },
+  {
+    "id": 41,
+    "name": "De La Salle Lipa",
+    "short_name": "DLSL",
+    "type": "Private University",
+    "region": "Region IV-A",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/5/5b/De_La_Salle_Lipa_logo.png/200px-De_La_Salle_Lipa_logo.png"
+  },
+  {
+    "id": 42,
+    "name": "De La Salle University",
+    "short_name": "DLSU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/9/9b/De_La_Salle_University_Seal.svg/200px-De_La_Salle_University_Seal.svg.png"
+  },
+  {
+    "id": 43,
+    "name": "De La Salle University - Dasmariñas",
+    "short_name": "DLSU-D",
+    "type": "Private University",
+    "region": "Region IV-A",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/DLSU-D_Seal.png/200px-DLSU-D_Seal.png"
+  },
+  {
+    "id": 44,
+    "name": "De La Salle-College of Saint Benilde",
+    "short_name": "DLS-CSB",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/4/4e/De_La_Salle_College_of_Saint_Benilde_seal.png/200px-De_La_Salle_College_of_Saint_Benilde_seal.png"
+  },
+  {
+    "id": 45,
+    "name": "Don Honorio Ventura State University",
+    "short_name": "DHVSU",
+    "type": "State University/College",
+    "region": "Region III",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/6/60/DHVSU_logo.png/200px-DHVSU_logo.png"
+  },
+  {
+    "id": 46,
+    "name": "Don Mariano Marcos Memorial State University",
+    "short_name": "DMMMSU",
+    "type": "State University/College",
+    "region": "Region I",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/9/93/DMMMSU_logo.png/200px-DMMMSU_logo.png"
+  },
+  {
+    "id": 47,
+    "name": "Eastern Samar State University",
+    "short_name": "ESSU",
+    "type": "State University/College",
+    "region": "Region VIII",
+    "logo": "https://essu.edu.ph/wp-content/uploads/2021/07/essu-logo.png"
+  },
+  {
+    "id": 48,
+    "name": "Eastern Visayas State University",
+    "short_name": "EVSU",
+    "type": "State University/College",
+    "region": "Region VIII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Eastern_Visayas_State_University_logo.png/200px-Eastern_Visayas_State_University_logo.png"
+  },
+  {
+    "id": 49,
+    "name": "Emilio Aguinaldo College",
+    "short_name": "EAC",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/Emilio_Aguinaldo_College_logo.png/200px-Emilio_Aguinaldo_College_logo.png"
+  },
+  {
+    "id": 50,
+    "name": "Eulogio 'Amang' Rodriguez Institute of Science and Technology",
+    "short_name": "EARIST",
+    "type": "State University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/EARIST_logo.png/200px-EARIST_logo.png"
+  },
+  {
+    "id": 51,
+    "name": "Eulogio Amang Rodriguez Institute of Science and Technology",
+    "short_name": "EARIST",
+    "type": "State University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/d/d3/EARIST_logo.png/200px-EARIST_logo.png"
+  },
+  {
+    "id": 52,
+    "name": "Far Eastern University",
+    "short_name": "FEU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/f/f2/Far_Eastern_University_seal.svg/200px-Far_Eastern_University_seal.svg.png"
+  },
+  {
+    "id": 53,
+    "name": "FEU Diliman",
+    "short_name": "FEU Diliman",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/f/f2/Far_Eastern_University_seal.svg/200px-Far_Eastern_University_seal.svg.png"
+  },
+  {
+    "id": 54,
+    "name": "FEU Institute of Technology",
+    "short_name": "FEU Tech",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/f/f7/FEU_Institute_of_Technology_logo.png/200px-FEU_Institute_of_Technology_logo.png"
+  },
+  {
+    "id": 55,
+    "name": "Filamer Christian University",
+    "short_name": "FCU",
+    "type": "Private University",
+    "region": "Region VI",
+    "logo": "https://fcu.edu.ph/wp-content/uploads/2021/01/fcu-logo.png"
+  },
+  {
+    "id": 56,
+    "name": "Foundation University",
+    "short_name": "FU",
+    "type": "Private University",
+    "region": "Region VII",
+    "logo": "https://foundationu.com/wp-content/uploads/2019/09/foundation-university-logo.png"
+  },
+  {
+    "id": 57,
+    "name": "Gordon College",
+    "short_name": "GC",
+    "type": "Local University/College",
+    "region": "Region III",
+    "logo": "https://gordoncollege.edu.ph/wp-content/uploads/2021/01/gc-logo.png"
+  },
+  {
+    "id": 58,
+    "name": "Holy Angel University",
+    "short_name": "HAU",
+    "type": "Private University",
+    "region": "Region III",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/b/b7/Holy_Angel_University_seal.png/200px-Holy_Angel_University_seal.png"
+  },
+  {
+    "id": 59,
+    "name": "Holy Cross of Davao College",
+    "short_name": "HCDC",
+    "type": "Private University",
+    "region": "Region XI",
+    "logo": "https://hcdc.edu.ph/wp-content/uploads/2021/07/hcdc-logo.png"
+  },
+  {
+    "id": 60,
+    "name": "Ifugao State University",
+    "short_name": "IFSU",
+    "type": "State University/College",
+    "region": "CAR",
+    "logo": "https://ifsu.edu.ph/wp-content/uploads/2021/07/ifsu-logo.png"
+  },
+  {
+    "id": 61,
+    "name": "Iligan Institute of Technology - MSU",
+    "short_name": "MSU-IIT",
+    "type": "State University/College",
+    "region": "Region X",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/7/7e/MSU-IIT_seal.png/200px-MSU-IIT_seal.png"
+  },
+  {
+    "id": 62,
+    "name": "Ilocos Norte College of Arts and Trades",
+    "short_name": "INCAT",
+    "type": "State University/College",
+    "region": "Region I",
+    "logo": "https://incat.edu.ph/assets/images/incat-logo.png"
+  },
+  {
+    "id": 63,
+    "name": "Iloilo Science and Technology University",
+    "short_name": "ISAT-U",
+    "type": "State University/College",
+    "region": "Region VI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e9/ISAT_University_logo.png/200px-ISAT_University_logo.png"
+  },
+  {
+    "id": 64,
+    "name": "Iloilo State University",
+    "short_name": "ISU",
+    "type": "State University/College",
+    "region": "Region VI",
+    "logo": "https://isu.edu.ph/wp-content/uploads/2021/07/isu-logo.png"
+  },
+  {
+    "id": 65,
+    "name": "Isabela State University",
+    "short_name": "ISU",
+    "type": "State University/College",
+    "region": "Region II",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/4/4f/Isabela_State_University_logo.png/200px-Isabela_State_University_logo.png"
+  },
+  {
+    "id": 66,
+    "name": "Jose Rizal University",
+    "short_name": "JRU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/2/28/Jose_Rizal_University_seal.png/200px-Jose_Rizal_University_seal.png"
+  },
+  {
+    "id": 67,
+    "name": "Kalayaan College",
+    "short_name": "KC",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://kalayaancollege.edu.ph/assets/images/kc-logo.png"
+  },
+  {
+    "id": 68,
+    "name": "Kalinga State University",
+    "short_name": "KSU",
+    "type": "State University/College",
+    "region": "CAR",
+    "logo": "https://ksu.edu.ph/wp-content/uploads/2021/07/ksu-logo.png"
+  },
+  {
+    "id": 69,
+    "name": "Kidapawan City College",
+    "short_name": "KCC",
+    "type": "Local University/College",
+    "region": "Region XII",
+    "logo": "https://kcc.edu.ph/assets/images/kcc-logo.png"
+  },
+  {
+    "id": 70,
+    "name": "La Salle University - Ozamiz",
+    "short_name": "LSU",
+    "type": "Private University",
+    "region": "Region X",
+    "logo": "https://lsu.edu.ph/wp-content/uploads/2021/06/lsu-logo.png"
+  },
+  {
+    "id": 71,
+    "name": "Laguna State Polytechnic University",
+    "short_name": "LSPU",
+    "type": "State University/College",
+    "region": "Region IV-A",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e4/Laguna_State_Polytechnic_University_logo.png/200px-Laguna_State_Polytechnic_University_logo.png"
+  },
+  {
+    "id": 72,
+    "name": "Laguna University",
+    "short_name": "LU",
+    "type": "Private University",
+    "region": "Region IV-A",
+    "logo": "https://lagunauniversity.edu.ph/wp-content/uploads/2021/07/lu-logo.png"
+  },
+  {
+    "id": 73,
+    "name": "Lanao del Norte Agricultural College",
+    "short_name": "LNAC",
+    "type": "State University/College",
+    "region": "Region X",
+    "logo": "https://lnac.edu.ph/assets/images/lnac-logo.png"
+  },
+  {
+    "id": 74,
+    "name": "Leyte Normal University",
+    "short_name": "LNU",
+    "type": "State University/College",
+    "region": "Region VIII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/a/ae/Leyte_Normal_University_logo.png/200px-Leyte_Normal_University_logo.png"
+  },
+  {
+    "id": 75,
+    "name": "Leyte State University",
+    "short_name": "LSU",
+    "type": "State University/College",
+    "region": "Region VIII",
+    "logo": "https://vsu.edu.ph/assets/images/vsu-logo.png"
+  },
+  {
+    "id": 76,
+    "name": "Lipa City Colleges",
+    "short_name": "LCC",
+    "type": "Private University",
+    "region": "Region IV-A",
+    "logo": "https://lipacitycolleges.edu.ph/assets/images/lcc-logo.png"
+  },
+  {
+    "id": 77,
+    "name": "Lyceum of the Philippines University",
+    "short_name": "LPU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/6/60/Lyceum_of_the_Philippines_University_seal.png/200px-Lyceum_of_the_Philippines_University_seal.png"
+  },
+  {
+    "id": 78,
+    "name": "Mabini College",
+    "short_name": "MC",
+    "type": "Private University",
+    "region": "Region I",
+    "logo": "https://mabinicollegedagupan.com/wp-content/uploads/2021/07/mc-logo.png"
+  },
+  {
+    "id": 79,
+    "name": "Manuel L. Quezon University",
+    "short_name": "MLQU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/38/Manuel_L_Quezon_University_logo.png/200px-Manuel_L_Quezon_University_logo.png"
+  },
+  {
+    "id": 80,
+    "name": "Mapúa University",
+    "short_name": "Mapúa",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e5/Mapua_University_logo.png/200px-Mapua_University_logo.png"
+  },
+  {
+    "id": 81,
+    "name": "Mariano Marcos State University",
+    "short_name": "MMSU",
+    "type": "State University/College",
+    "region": "Region I",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/c/cf/MMSU_logo.png/200px-MMSU_logo.png"
+  },
+  {
+    "id": 82,
+    "name": "Marikina Polytechnic College",
+    "short_name": "MPC",
+    "type": "Local University/College",
+    "region": "NCR",
+    "logo": "https://mpc.edu.ph/assets/images/mpc-logo.png"
+  },
+  {
+    "id": 83,
+    "name": "Marinduque State College",
+    "short_name": "MSC",
+    "type": "State University/College",
+    "region": "MIMAROPA",
+    "logo": "https://mscmarinduque.edu.ph/wp-content/uploads/2021/07/msc-logo.png"
+  },
+  {
+    "id": 84,
+    "name": "Metro Manila College",
+    "short_name": "MMC",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://mmc.edu.ph/assets/images/mmc-logo.png"
+  },
+  {
+    "id": 85,
+    "name": "Mindanao State University",
+    "short_name": "MSU",
+    "type": "State University/College",
+    "region": "BARMM",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/3a/Mindanao_State_University_seal.png/200px-Mindanao_State_University_seal.png"
+  },
+  {
+    "id": 86,
+    "name": "Mindanao State University - Davao",
+    "short_name": "MSU-Davao",
+    "type": "State University/College",
+    "region": "Region XI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/3a/Mindanao_State_University_seal.png/200px-Mindanao_State_University_seal.png"
+  },
+  {
+    "id": 87,
+    "name": "Mindanao State University - Maigo School of Arts and Trades",
+    "short_name": "MSU-MSAT",
+    "type": "State University/College",
+    "region": "Region X",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/3a/Mindanao_State_University_seal.png/200px-Mindanao_State_University_seal.png"
+  },
+  {
+    "id": 88,
+    "name": "Mindanao State University - Naawan",
+    "short_name": "MSU-Naawan",
+    "type": "State University/College",
+    "region": "Region X",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/3a/Mindanao_State_University_seal.png/200px-Mindanao_State_University_seal.png"
+  },
+  {
+    "id": 89,
+    "name": "Miriam College",
+    "short_name": "MC",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/6/6e/Miriam_College_logo.png/200px-Miriam_College_logo.png"
+  },
+  {
+    "id": 90,
+    "name": "Misamis Oriental State College of Agriculture and Technology",
+    "short_name": "MOSCAT",
+    "type": "State University/College",
+    "region": "Region X",
+    "logo": "https://moscat.edu.ph/wp-content/uploads/2021/07/moscat-logo.png"
+  },
+  {
+    "id": 91,
+    "name": "Misamis University",
+    "short_name": "MU",
+    "type": "Private University",
+    "region": "Region X",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/5/5f/Misamis_University_seal.png/200px-Misamis_University_seal.png"
+  },
+  {
+    "id": 92,
+    "name": "Mountain Province State Polytechnic College",
+    "short_name": "MPSPC",
+    "type": "State University/College",
+    "region": "CAR",
+    "logo": "https://mpspc.edu.ph/wp-content/uploads/2020/09/mpspc-logo.png"
+  },
+  {
+    "id": 93,
+    "name": "Mountain Province State University",
+    "short_name": "MPSU",
+    "type": "State University/College",
+    "region": "CAR",
+    "logo": "https://mpspc.edu.ph/wp-content/uploads/2020/09/mpspc-logo.png"
+  },
+  {
+    "id": 94,
+    "name": "MSU - General Santos",
+    "short_name": "MSU-GenSan",
+    "type": "State University/College",
+    "region": "Region XII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/3a/Mindanao_State_University_seal.png/200px-Mindanao_State_University_seal.png"
+  },
+  {
+    "id": 95,
+    "name": "National University Philippines",
+    "short_name": "NU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e7/National_University_Philippines_logo.png/200px-National_University_Philippines_logo.png"
+  },
+  {
+    "id": 96,
+    "name": "Naval State University",
+    "short_name": "NSU",
+    "type": "State University/College",
+    "region": "Region VIII",
+    "logo": "https://nsu.edu.ph/wp-content/uploads/2021/07/nsu-logo.png"
+  },
+  {
+    "id": 97,
+    "name": "Negros Occidental State University",
+    "short_name": "NegOccSU",
+    "type": "State University/College",
+    "region": "Region VI",
+    "logo": "https://negoccsu.edu.ph/wp-content/uploads/2022/08/negoccsu-logo.png"
+  },
+  {
+    "id": 98,
+    "name": "Negros Oriental State University",
+    "short_name": "NORSU",
+    "type": "State University/College",
+    "region": "Region VII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/33/Negros_Oriental_State_University_logo.png/200px-Negros_Oriental_State_University_logo.png"
+  },
+  {
+    "id": 99,
+    "name": "New Era University",
+    "short_name": "NEU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/a/a0/New_Era_University_logo.png/200px-New_Era_University_logo.png"
+  },
+  {
+    "id": 100,
+    "name": "North Cotabato Polytechnic State College",
+    "short_name": "NCPSC",
+    "type": "State University/College",
+    "region": "Region XII",
+    "logo": "https://ncpsc.edu.ph/assets/images/ncpsc-logo.png"
+  },
+  {
+    "id": 101,
+    "name": "Northern Negros State College of Science and Technology",
+    "short_name": "NONESCOST",
+    "type": "State University/College",
+    "region": "Region VI",
+    "logo": "https://nonescost.edu.ph/assets/images/nonescost-logo.png"
+  },
+  {
+    "id": 102,
+    "name": "Northwestern University",
+    "short_name": "NU-Laoag",
+    "type": "Private University",
+    "region": "Region I",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/0/04/Northwestern_University_Philippines_logo.png/200px-Northwestern_University_Philippines_logo.png"
+  },
+  {
+    "id": 103,
+    "name": "Notre Dame of Dadiangas University",
+    "short_name": "NDDU",
+    "type": "Private University",
+    "region": "Region XII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/6/6e/Notre_Dame_of_Dadiangas_University_seal.png/200px-Notre_Dame_of_Dadiangas_University_seal.png"
+  },
+  {
+    "id": 104,
+    "name": "Notre Dame of Marbel University",
+    "short_name": "NDMU",
+    "type": "Private University",
+    "region": "Region XII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/1/18/Notre_Dame_of_Marbel_University_logo.png/200px-Notre_Dame_of_Marbel_University_logo.png"
+  },
+  {
+    "id": 105,
+    "name": "Notre Dame University - Cotabato",
+    "short_name": "NDU",
+    "type": "Private University",
+    "region": "BARMM",
+    "logo": "https://ndu.edu.ph/wp-content/uploads/2021/01/ndu-logo.png"
+  },
+  {
+    "id": 106,
+    "name": "Nueva Vizcaya State University",
+    "short_name": "NVSU",
+    "type": "State University/College",
+    "region": "Region II",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/8/8f/Nueva_Vizcaya_State_University_logo.png/200px-Nueva_Vizcaya_State_University_logo.png"
+  },
+  {
+    "id": 107,
+    "name": "Occidental Mindoro State College",
+    "short_name": "OMSC",
+    "type": "State University/College",
+    "region": "MIMAROPA",
+    "logo": "https://omsc.edu.ph/assets/images/omsc-logo.png"
+  },
+  {
+    "id": 108,
+    "name": "Olivarez College",
+    "short_name": "OC",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://olivarezcollege.edu.ph/wp-content/uploads/2021/07/oc-logo.png"
+  },
+  {
+    "id": 109,
+    "name": "Our Lady of Fatima University",
+    "short_name": "OLFU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/a/af/Our_Lady_of_Fatima_University_logo.png/200px-Our_Lady_of_Fatima_University_logo.png"
+  },
+  {
+    "id": 110,
+    "name": "Palawan State University",
+    "short_name": "PSU",
+    "type": "State University/College",
+    "region": "MIMAROPA",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/a/a3/Palawan_State_University_logo.png/200px-Palawan_State_University_logo.png"
+  },
+  {
+    "id": 111,
+    "name": "Pamantasan ng Lungsod ng Maynila",
+    "short_name": "PLM",
+    "type": "Local University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/3e/PLM_seal.png/200px-PLM_seal.png"
+  },
+  {
+    "id": 112,
+    "name": "Pamantasan ng Lungsod ng Muntinlupa",
+    "short_name": "PLMun",
+    "type": "Local University/College",
+    "region": "NCR",
+    "logo": "https://plmun.edu.ph/assets/images/plmun-logo.png"
+  },
+  {
+    "id": 113,
+    "name": "Pamantasan ng Lungsod ng Pasay",
+    "short_name": "PLP",
+    "type": "Local University/College",
+    "region": "NCR",
+    "logo": "https://plp.edu.ph/assets/images/plp-logo.png"
+  },
+  {
+    "id": 114,
+    "name": "Pamantasan ng Lungsod ng Pasig",
+    "short_name": "PLPasig",
+    "type": "Local University/College",
+    "region": "NCR",
+    "logo": "https://plpasig.edu.ph/assets/images/plpasig-logo.png"
+  },
+  {
+    "id": 115,
+    "name": "Pamantasan ng Lungsod ng San Jose del Monte",
+    "short_name": "PLSJDM",
+    "type": "Local University/College",
+    "region": "Region III",
+    "logo": "https://plsjdm.edu.ph/assets/images/plsjdm-logo.png"
+  },
+  {
+    "id": 116,
+    "name": "Pamantasan ng Lungsod ng Valenzuela",
+    "short_name": "PLV",
+    "type": "Local University/College",
+    "region": "NCR",
+    "logo": "https://plv.edu.ph/assets/images/plv-logo.png"
+  },
+  {
+    "id": 117,
+    "name": "Pangasinan State University",
+    "short_name": "PSU",
+    "type": "State University/College",
+    "region": "Region I",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/33/Pangasinan_State_University_logo.png/200px-Pangasinan_State_University_logo.png"
+  },
+  {
+    "id": 118,
+    "name": "Philippine Christian University",
+    "short_name": "PCU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/Philippine_Christian_University_logo.png/200px-Philippine_Christian_University_logo.png"
+  },
+  {
+    "id": 119,
+    "name": "Philippine Merchant Marine Academy",
+    "short_name": "PMMA",
+    "type": "State University/College",
+    "region": "Region III",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/5/52/PMMA_seal.png/200px-PMMA_seal.png"
+  },
+  {
+    "id": 120,
+    "name": "Philippine Military Academy",
+    "short_name": "PMA",
+    "type": "State University/College",
+    "region": "CAR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/0/04/Philippine_Military_Academy_Seal.svg/200px-Philippine_Military_Academy_Seal.svg.png"
+  },
+  {
+    "id": 121,
+    "name": "Philippine Normal University",
+    "short_name": "PNU",
+    "type": "State University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/9/9d/Philippine_Normal_University_logo.png/200px-Philippine_Normal_University_logo.png"
+  },
+  {
+    "id": 122,
+    "name": "Philippine School of Business Administration",
+    "short_name": "PSBA",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://psba.edu/assets/images/psba-logo.png"
+  },
+  {
+    "id": 123,
+    "name": "Philippine Women's University",
+    "short_name": "PWU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/4/41/Philippine_Women%27s_University_logo.png/200px-Philippine_Women%27s_University_logo.png"
+  },
+  {
+    "id": 124,
+    "name": "Pilar College",
+    "short_name": "PC",
+    "type": "Private University",
+    "region": "Region IX",
+    "logo": "https://pilar.edu.ph/assets/images/pilar-logo.png"
+  },
+  {
+    "id": 125,
+    "name": "Polytechnic College of Davao del Sur",
+    "short_name": "PCDS",
+    "type": "State University/College",
+    "region": "Region XI",
+    "logo": "https://pcds.edu.ph/assets/images/pcds-logo.png"
+  },
+  {
+    "id": 126,
+    "name": "Polytechnic University of the Philippines",
+    "short_name": "PUP",
+    "type": "State University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/9/92/Polytechnic_University_of_the_Philippines.svg/200px-Polytechnic_University_of_the_Philippines.svg.png"
+  },
+  {
+    "id": 127,
+    "name": "Punlaan School",
+    "short_name": "PS",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://punlaan.edu.ph/assets/images/ps-logo.png"
+  },
+  {
+    "id": 128,
+    "name": "Quezon City University",
+    "short_name": "QCU",
+    "type": "Local University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/b/b2/Quezon_City_University_logo.png/200px-Quezon_City_University_logo.png"
+  },
+  {
+    "id": 129,
+    "name": "Quirino State University",
+    "short_name": "QSU",
+    "type": "State University/College",
+    "region": "Region II",
+    "logo": "https://qsu.edu.ph/wp-content/uploads/2020/08/qsu-logo.png"
+  },
+  {
+    "id": 130,
+    "name": "Ramon Magsaysay Technological University",
+    "short_name": "RMTU",
+    "type": "State University/College",
+    "region": "Region III",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/0/07/Ramon_Magsaysay_Technological_University_logo.png/200px-Ramon_Magsaysay_Technological_University_logo.png"
+  },
+  {
+    "id": 131,
+    "name": "Rizal Technological University",
+    "short_name": "RTU",
+    "type": "State University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/f/f7/Rizal_Technological_University_logo.png/200px-Rizal_Technological_University_logo.png"
+  },
+  {
+    "id": 132,
+    "name": "Romblon State University",
+    "short_name": "RSU",
+    "type": "State University/College",
+    "region": "MIMAROPA",
+    "logo": "https://rsu.edu.ph/wp-content/uploads/2021/07/rsu-logo.png"
+  },
+  {
+    "id": 133,
+    "name": "Saint Ferdinand College",
+    "short_name": "SFC",
+    "type": "Private University",
+    "region": "Region II",
+    "logo": "https://sfc.edu.ph/wp-content/uploads/2021/07/sfc-logo.png"
+  },
+  {
+    "id": 134,
+    "name": "Saint Louis University",
+    "short_name": "SLU",
+    "type": "Private University",
+    "region": "CAR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/6/6b/Saint_Louis_University_Baguio_seal.png/200px-Saint_Louis_University_Baguio_seal.png"
+  },
+  {
+    "id": 135,
+    "name": "Saint Mary's University",
+    "short_name": "SMU",
+    "type": "Private University",
+    "region": "Region II",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/2/24/Saint_Mary%27s_University_Philippines_logo.png/200px-Saint_Mary%27s_University_Philippines_logo.png"
+  },
+  {
+    "id": 136,
+    "name": "Saint Paul University Philippines",
+    "short_name": "SPUP",
+    "type": "Private University",
+    "region": "Region II",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/8/81/Saint_Paul_University_Philippines_seal.png/200px-Saint_Paul_University_Philippines_seal.png"
+  },
+  {
+    "id": 137,
+    "name": "Samar State University",
+    "short_name": "SSU",
+    "type": "State University/College",
+    "region": "Region VIII",
+    "logo": "https://ssu.edu.ph/wp-content/uploads/2021/07/ssu-logo.png"
+  },
+  {
+    "id": 138,
+    "name": "San Beda University",
+    "short_name": "SBU",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e4/San_Beda_University_logo.png/200px-San_Beda_University_logo.png"
+  },
+  {
+    "id": 139,
+    "name": "San Carlos College",
+    "short_name": "SCC",
+    "type": "Private University",
+    "region": "Region III",
+    "logo": "https://scc.edu.ph/assets/images/scc-logo.png"
+  },
+  {
+    "id": 140,
+    "name": "San Pedro College",
+    "short_name": "SPC",
+    "type": "Private University",
+    "region": "Region XI",
+    "logo": "https://spc.edu.ph/assets/images/spc-logo.png"
+  },
+  {
+    "id": 141,
+    "name": "Silliman University",
+    "short_name": "SU",
+    "type": "Private University",
+    "region": "Region VII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/c/c7/Silliman_University_seal.svg/200px-Silliman_University_seal.svg.png"
+  },
+  {
+    "id": 142,
+    "name": "Soksoargen College of Arts and Technology",
+    "short_name": "SCAT",
+    "type": "Private University",
+    "region": "Region XII",
+    "logo": "https://scat.edu.ph/assets/images/scat-logo.png"
+  },
+  {
+    "id": 143,
+    "name": "Sorsogon State University",
+    "short_name": "SorSU",
+    "type": "State University/College",
+    "region": "Region V",
+    "logo": "https://sorsu.edu.ph/wp-content/uploads/2020/12/sorsu-logo.png"
+  },
+  {
+    "id": 144,
+    "name": "Southeast Asian Interdisciplinary Studies",
+    "short_name": "SEAIS",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://seais.edu.ph/assets/images/seais-logo.png"
+  },
+  {
+    "id": 145,
+    "name": "Southern Christian College",
+    "short_name": "SCC",
+    "type": "Private University",
+    "region": "Region XII",
+    "logo": "https://scc-philippines.edu.ph/wp-content/uploads/2021/07/scc-logo.png"
+  },
+  {
+    "id": 146,
+    "name": "Southern Isabela College of Arts and Technology",
+    "short_name": "SICAT",
+    "type": "State University/College",
+    "region": "Region II",
+    "logo": "https://sicat.edu.ph/assets/images/sicat-logo.png"
+  },
+  {
+    "id": 147,
+    "name": "Southern Leyte State University",
+    "short_name": "SLSU",
+    "type": "State University/College",
+    "region": "Region VIII",
+    "logo": "https://slsu.edu.ph/wp-content/uploads/2021/07/slsu-logo.png"
+  },
+  {
+    "id": 148,
+    "name": "Southern Philippines Agri-business and Marine and Aquatic School of Technology",
+    "short_name": "SPAMAST",
+    "type": "State University/College",
+    "region": "Region XI",
+    "logo": "https://spamast.edu.ph/wp-content/uploads/2020/08/spamast-logo.png"
+  },
+  {
+    "id": 149,
+    "name": "Southville International School and Colleges",
+    "short_name": "SISC",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://southville.edu.ph/wp-content/uploads/2021/07/southville-logo.png"
+  },
+  {
+    "id": 150,
+    "name": "Sultan Kudarat State University",
+    "short_name": "SKSU",
+    "type": "State University/College",
+    "region": "Region XII",
+    "logo": "https://sksu.edu.ph/wp-content/uploads/2021/07/sksu-logo.png"
+  },
+  {
+    "id": 151,
+    "name": "Surigao del Sur State University",
+    "short_name": "SDSSU",
+    "type": "State University/College",
+    "region": "Region XIII",
+    "logo": "https://sdssu.edu.ph/wp-content/uploads/2021/07/sdssu-logo.png"
+  },
+  {
+    "id": 152,
+    "name": "Surigao State College of Technology",
+    "short_name": "SSCT",
+    "type": "State University/College",
+    "region": "Region XIII",
+    "logo": "https://ssct.edu.ph/assets/images/ssct-logo.png"
+  },
+  {
+    "id": 153,
+    "name": "Tarlac Agricultural University",
+    "short_name": "TAU",
+    "type": "State University/College",
+    "region": "Region III",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e9/Tarlac_Agricultural_University_logo.png/200px-Tarlac_Agricultural_University_logo.png"
+  },
+  {
+    "id": 154,
+    "name": "Tarlac State University",
+    "short_name": "TSU",
+    "type": "State University/College",
+    "region": "Region III",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/5/5c/Tarlac_State_University_logo.png/200px-Tarlac_State_University_logo.png"
+  },
+  {
+    "id": 155,
+    "name": "Tawi-Tawi Regional Agricultural College",
+    "short_name": "TRAC",
+    "type": "State University/College",
+    "region": "BARMM",
+    "logo": "https://trac.edu.ph/assets/images/trac-logo.png"
+  },
+  {
+    "id": 156,
+    "name": "Technological Institute of the Philippines",
+    "short_name": "TIP",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/5/51/Technological_Institute_of_the_Philippines_logo.png/200px-Technological_Institute_of_the_Philippines_logo.png"
+  },
+  {
+    "id": 157,
+    "name": "Technological University of the Philippines",
+    "short_name": "TUP",
+    "type": "State University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/9/91/Technological_University_of_the_Philippines_seal.png/200px-Technological_University_of_the_Philippines_seal.png"
+  },
+  {
+    "id": 158,
+    "name": "University of Antique",
+    "short_name": "UA",
+    "type": "State University/College",
+    "region": "Region VI",
+    "logo": "https://ua.edu.ph/wp-content/uploads/2021/07/ua-logo.png"
+  },
+  {
+    "id": 159,
+    "name": "University of Baguio",
+    "short_name": "UB",
+    "type": "Private University",
+    "region": "CAR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/4/40/University_of_Baguio_seal.png/200px-University_of_Baguio_seal.png"
+  },
+  {
+    "id": 160,
+    "name": "University of Batangas",
+    "short_name": "UB",
+    "type": "Private University",
+    "region": "Region IV-A",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/1/1e/University_of_Batangas_logo.png/200px-University_of_Batangas_logo.png"
+  },
+  {
+    "id": 161,
+    "name": "University of Cebu",
+    "short_name": "UC",
+    "type": "Private University",
+    "region": "Region VII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/2/2a/University_of_Cebu_logo.png/200px-University_of_Cebu_logo.png"
+  },
+  {
+    "id": 162,
+    "name": "University of Eastern Philippines",
+    "short_name": "UEP",
+    "type": "State University/College",
+    "region": "Region VIII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/University_of_Eastern_Philippines_logo.png/200px-University_of_Eastern_Philippines_logo.png"
+  },
+  {
+    "id": 163,
+    "name": "University of Immaculate Conception",
+    "short_name": "UIC",
+    "type": "Private University",
+    "region": "Region XI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/f/fd/University_of_the_Immaculate_Conception_logo.png/200px-University_of_the_Immaculate_Conception_logo.png"
+  },
+  {
+    "id": 164,
+    "name": "University of Makati",
+    "short_name": "UMak",
+    "type": "Local University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/6/67/University_of_Makati_logo.png/200px-University_of_Makati_logo.png"
+  },
+  {
+    "id": 165,
+    "name": "University of Manila",
+    "short_name": "UM",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://universityofmanila.edu.ph/assets/images/um-logo.png"
+  },
+  {
+    "id": 166,
+    "name": "University of Mindanao",
+    "short_name": "UM",
+    "type": "Private University",
+    "region": "Region XI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/d/d2/University_of_Mindanao_logo.png/200px-University_of_Mindanao_logo.png"
+  },
+  {
+    "id": 167,
+    "name": "University of Northern Philippines",
+    "short_name": "UNP",
+    "type": "State University/College",
+    "region": "Region I",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/0/0e/University_of_Northern_Philippines_logo.png/200px-University_of_Northern_Philippines_logo.png"
+  },
+  {
+    "id": 168,
+    "name": "University of Nueva Caceres",
+    "short_name": "UNC",
+    "type": "Private University",
+    "region": "Region V",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/7/7e/University_of_Nueva_Caceres_logo.png/200px-University_of_Nueva_Caceres_logo.png"
+  },
+  {
+    "id": 169,
+    "name": "University of Pangasinan",
+    "short_name": "U-Pan",
+    "type": "Private University",
+    "region": "Region I",
+    "logo": "https://universityofpangasinan.edu.ph/wp-content/uploads/2021/07/u-pan-logo.png"
+  },
+  {
+    "id": 170,
+    "name": "University of Perpetual Help Rizal",
+    "short_name": "UPHR",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://uphr.edu.ph/wp-content/uploads/2021/07/uphrinc-logo.png"
+  },
+  {
+    "id": 171,
+    "name": "University of Perpetual Help System DALTA",
+    "short_name": "UPHSD",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/University_of_Perpetual_Help_System_DALTA_logo.png/200px-University_of_Perpetual_Help_System_DALTA_logo.png"
+  },
+  {
+    "id": 172,
+    "name": "University of Rizal System",
+    "short_name": "URS",
+    "type": "State University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/7/7a/University_of_Rizal_System_logo.png/200px-University_of_Rizal_System_logo.png"
+  },
+  {
+    "id": 173,
+    "name": "University of San Agustin",
+    "short_name": "USA",
+    "type": "Private University",
+    "region": "Region VI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/5/5a/University_of_San_Agustin_logo.png/200px-University_of_San_Agustin_logo.png"
+  },
+  {
+    "id": 174,
+    "name": "University of San Carlos",
+    "short_name": "USC",
+    "type": "Private University",
+    "region": "Region VII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/a/a1/University_of_San_Carlos_seal.svg/200px-University_of_San_Carlos_seal.svg.png"
+  },
+  {
+    "id": 175,
+    "name": "University of Santo Tomas",
+    "short_name": "UST",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/b/b6/UST_Seal.svg/200px-UST_Seal.svg.png"
+  },
+  {
+    "id": 176,
+    "name": "University of Southeastern Philippines",
+    "short_name": "USeP",
+    "type": "State University/College",
+    "region": "Region XI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/ea/University_of_Southeastern_Philippines_logo.png/200px-University_of_Southeastern_Philippines_logo.png"
+  },
+  {
+    "id": 177,
+    "name": "University of Southern Philippines Foundation",
+    "short_name": "USPF",
+    "type": "Private University",
+    "region": "Region VII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/38/University_of_Southern_Philippines_Foundation_logo.png/200px-University_of_Southern_Philippines_Foundation_logo.png"
+  },
+  {
+    "id": 178,
+    "name": "University of the Assumption",
+    "short_name": "UA",
+    "type": "Private University",
+    "region": "Region III",
+    "logo": "https://ua.edu.ph/wp-content/uploads/2020/08/ua-logo.png"
+  },
+  {
+    "id": 179,
+    "name": "University of the Cordilleras",
+    "short_name": "UC",
+    "type": "Private University",
+    "region": "CAR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/2/26/University_of_the_Cordilleras_logo.png/200px-University_of_the_Cordilleras_logo.png"
+  },
+  {
+    "id": 180,
+    "name": "University of the East",
+    "short_name": "UE",
+    "type": "Private University",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/f/f0/University_of_the_East_seal.svg/200px-University_of_the_East_seal.svg.png"
+  },
+  {
+    "id": 181,
+    "name": "University of the Philippines Baguio",
+    "short_name": "UP Baguio",
+    "type": "State University/College",
+    "region": "CAR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/UP_seal.svg/200px-UP_seal.svg.png"
+  },
+  {
+    "id": 182,
+    "name": "University of the Philippines Cebu",
+    "short_name": "UP Cebu",
+    "type": "State University/College",
+    "region": "Region VII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/UP_seal.svg/200px-UP_seal.svg.png"
+  },
+  {
+    "id": 183,
+    "name": "University of the Philippines Diliman",
+    "short_name": "UP Diliman",
+    "type": "State University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/UP_seal.svg/200px-UP_seal.svg.png"
+  },
+  {
+    "id": 184,
+    "name": "University of the Philippines Los Baños",
+    "short_name": "UPLB",
+    "type": "State University/College",
+    "region": "Region IV-A",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/UP_seal.svg/200px-UP_seal.svg.png"
+  },
+  {
+    "id": 185,
+    "name": "University of the Philippines Manila",
+    "short_name": "UP Manila",
+    "type": "State University/College",
+    "region": "NCR",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/UP_seal.svg/200px-UP_seal.svg.png"
+  },
+  {
+    "id": 186,
+    "name": "University of the Philippines Mindanao",
+    "short_name": "UP Mindanao",
+    "type": "State University/College",
+    "region": "Region XI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/UP_seal.svg/200px-UP_seal.svg.png"
+  },
+  {
+    "id": 187,
+    "name": "University of the Philippines Open University",
+    "short_name": "UPOU",
+    "type": "State University/College",
+    "region": "Region IV-A",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/UP_seal.svg/200px-UP_seal.svg.png"
+  },
+  {
+    "id": 188,
+    "name": "University of the Philippines Visayas",
+    "short_name": "UPV",
+    "type": "State University/College",
+    "region": "Region VI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/e/e3/UP_seal.svg/200px-UP_seal.svg.png"
+  },
+  {
+    "id": 189,
+    "name": "University of the Visayas",
+    "short_name": "UV",
+    "type": "Private University",
+    "region": "Region VII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/8/82/University_of_the_Visayas_logo.png/200px-University_of_the_Visayas_logo.png"
+  },
+  {
+    "id": 190,
+    "name": "Urdaneta City University",
+    "short_name": "UCU",
+    "type": "Local University/College",
+    "region": "Region I",
+    "logo": "https://urdanetacity.gov.ph/wp-content/uploads/2020/01/ucu-logo.png"
+  },
+  {
+    "id": 191,
+    "name": "Virgen Milagrosa University Foundation",
+    "short_name": "VMUF",
+    "type": "Private University",
+    "region": "Region I",
+    "logo": "https://vmuf.edu.ph/wp-content/uploads/2020/08/vmuf-logo.png"
+  },
+  {
+    "id": 192,
+    "name": "Visayas State University",
+    "short_name": "VSU",
+    "type": "State University/College",
+    "region": "Region VIII",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/2/2c/Visayas_State_University_logo.png/200px-Visayas_State_University_logo.png"
+  },
+  {
+    "id": 193,
+    "name": "Wesleyan University Philippines",
+    "short_name": "WUP",
+    "type": "Private University",
+    "region": "Region III",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/b/b7/Wesleyan_University_Philippines_logo.png/200px-Wesleyan_University_Philippines_logo.png"
+  },
+  {
+    "id": 194,
+    "name": "West Visayas State University",
+    "short_name": "WVSU",
+    "type": "State University/College",
+    "region": "Region VI",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/3/3c/West_Visayas_State_University_logo.png/200px-West_Visayas_State_University_logo.png"
+  },
+  {
+    "id": 195,
+    "name": "Western Mindanao State University",
+    "short_name": "WMSU",
+    "type": "State University/College",
+    "region": "Region IX",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/8/87/Western_Mindanao_State_University_logo.png/200px-Western_Mindanao_State_University_logo.png"
+  },
+  {
+    "id": 196,
+    "name": "Western Philippines University",
+    "short_name": "WPU",
+    "type": "State University/College",
+    "region": "MIMAROPA",
+    "logo": "https://wpu.edu.ph/wp-content/uploads/2021/07/wpu-logo.png"
+  },
+  {
+    "id": 197,
+    "name": "Xavier University - Ateneo de Cagayan",
+    "short_name": "XU",
+    "type": "Private University",
+    "region": "Region X",
+    "logo": "https://upload.wikimedia.org/wikipedia/en/thumb/4/45/Xavier_University_Ateneo_de_Cagayan_seal.png/200px-Xavier_University_Ateneo_de_Cagayan_seal.png"
+  },
+  {
+    "id": 198,
+    "name": "Zamboanga Peninsula Polytechnic State University",
+    "short_name": "ZPPSU",
+    "type": "State University/College",
+    "region": "Region IX",
+    "logo": "https://zppsu.edu.ph/wp-content/uploads/2021/07/zppsu-logo.png"
+  },
+  {
+    "id": 199,
+    "name": "Zamboanga State College of Marine Sciences and Technology",
+    "short_name": "ZSCMST",
+    "type": "State University/College",
+    "region": "Region IX",
+    "logo": "https://zscmst.edu.ph/assets/images/zscmst-logo.png"
+  }
+]

@@ -6,11 +6,12 @@ import { useNavigate } from "react-router";
 import { Pause, Play, Sparkles, Mic, Loader2, MicOff } from "lucide-react";
 import { useNotes } from "./NotesContext";
 import { useToast } from "./toast";
+import logoUrl from "./assets/logo.svg";
 
 function LuminoteLogo() {
   return (
     <div style={{ width:40, height:40, borderRadius:12, background:"#0E1117", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-      <img src="/src/assets/logo.svg" alt="Luminote" width="18" height="18" style={{ objectFit: "contain" }} />
+      <img src={logoUrl} alt="Luminote" width="18" height="18" style={{ objectFit: "contain" }} />
     </div>
   );
 }
@@ -20,6 +21,17 @@ const CSS = `
 @keyframes vm-pulse  { 0%,100%{opacity:.4} 50%{opacity:1} }
 @keyframes vm-spin   { to{transform:rotate(360deg)} }
 .vm-spin { animation:vm-spin .8s linear infinite; }
+
+/* Responsive modal behavior across phone/tablet/desktop. */
+@media (max-width: 768px) {
+  .vm-overlay { align-items: flex-start !important; padding: 12px !important; }
+  .vm-card { border-radius: 20px !important; padding: 18px !important; max-height: calc(100dvh - 24px); overflow-y: auto; }
+  .vm-controls { gap: 10px; }
+}
+
+@media (max-width: 480px) {
+  .vm-card { padding: 16px !important; }
+}
 `;
 
 // Browser SpeechRecognition
@@ -200,10 +212,10 @@ export function VoiceMemo() {
   const hasStarted = isRecording || seconds > 0;
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(14,17,23,.45)", backdropFilter:"blur(6px)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+    <div className="vm-overlay" style={{ position:"fixed", inset:0, background:"rgba(14,17,23,.45)", backdropFilter:"blur(6px)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
       <style>{CSS}</style>
 
-      <div style={{ width:"100%", maxWidth:480, background:"white", borderRadius:28, boxShadow:"0 32px 80px rgba(0,0,0,.2)", padding:28, display:"flex", flexDirection:"column", fontFamily:"'Outfit','DM Sans',sans-serif" }}>
+      <div className="vm-card" style={{ width:"100%", maxWidth:560, background:"white", borderRadius:28, boxShadow:"0 32px 80px rgba(0,0,0,.2)", padding:28, display:"flex", flexDirection:"column", fontFamily:"'Outfit','DM Sans',sans-serif" }}>
 
         {/* Header */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:22 }}>
@@ -299,9 +311,9 @@ export function VoiceMemo() {
         </button>
 
         {/* Controls */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div className="vm-controls" style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
           <button type="button" onClick={() => { stopRecording(); navigate(-1); }}
-            style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", background:"none", border:"none", cursor:"pointer", fontFamily:"inherit" }}>
+            style={{ minHeight:44, fontSize:13, fontWeight:600, color:"#9CA3AF", background:"none", border:"none", cursor:"pointer", fontFamily:"inherit" }}>
             Cancel
           </button>
 
@@ -322,7 +334,7 @@ export function VoiceMemo() {
             type="button"
             onClick={handleFinish}
             disabled={!hasStarted || saving}
-            style={{ padding:"10px 20px", borderRadius:14, background:hasStarted?"#0E1117":"#F3F4F6", color:hasStarted?"white":"#9CA3AF", border:"none", cursor:hasStarted?"pointer":"not-allowed", fontSize:13, fontWeight:700, fontFamily:"inherit", display:"flex", alignItems:"center", gap:6, transition:"all .2s" }}>
+            style={{ minHeight:44, padding:"10px 20px", borderRadius:14, background:hasStarted?"#0E1117":"#F3F4F6", color:hasStarted?"white":"#9CA3AF", border:"none", cursor:hasStarted?"pointer":"not-allowed", fontSize:13, fontWeight:700, fontFamily:"inherit", display:"flex", alignItems:"center", gap:6, transition:"all .2s" }}>
             {saving ? <><Loader2 size={14} className="vm-spin" /> Saving…</> : "Finish & Save"}
           </button>
         </div>

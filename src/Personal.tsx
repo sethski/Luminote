@@ -3,15 +3,17 @@
  * - Lumi chatbot (conversational AI assistant)
  * - Courses list and AI-prioritized Tasks
  */
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { supabase } from "./supabaseClient";
 import { useAuth } from "./AuthContext";
 import { useToast } from "./toast";
+import { useNotes } from "./NotesContext";
 import {
   Calendar, Code, BookOpen, Sigma,
   LayoutGrid, Sparkles, Send, GraduationCap, GripVertical, Check, BotMessageSquare, FileText, ArrowUp, Plus, X, Trash2, Clock3
 } from "lucide-react";
+import { ProfileSection } from "./ProfileSection";
 
 type PersonalCourse = {
   id: string;
@@ -26,10 +28,109 @@ type PersonalCourse = {
   notes?: string;
 };
 
+type CourseScheduleInput = {
+  days?: Array<string | number>;
+  time?: string;
+  hour?: number | string;
+  minute?: number | string;
+  period?: "AM" | "PM" | string;
+};
+
+const COURSE_ACCENT_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", "#14B8A6"];
+const DAY_INDEX_TO_LABEL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function normalizeDayLabel(day: string | number): string | null {
+  if (typeof day === "number" && Number.isFinite(day)) {
+    if (day >= 1 && day <= 7) return DAY_INDEX_TO_LABEL[day - 1];
+    if (day >= 0 && day <= 6) {
+      const sundayFirst = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      return sundayFirst[day];
+    }
+    return null;
+  }
+
+  if (typeof day !== "string") return null;
+  const normalized = day.trim().slice(0, 3).toLowerCase();
+  const byToken: Record<string, string> = {
+    mon: "Mon",
+    tue: "Tue",
+    wed: "Wed",
+    thu: "Thu",
+    fri: "Fri",
+    sat: "Sat",
+    sun: "Sun",
+  };
+  return byToken[normalized] ?? null;
+}
+
+function formatDisplayTime(input: Pick<CourseScheduleInput, "time" | "hour" | "minute" | "period">): string {
+  const trimTime = input.time?.trim();
+
+  if (trimTime) {
+    const match = trimTime.match(/^(\d{1,2}):(\d{2})(?:\s*([AaPp][Mm]))?$/);
+    if (match) {
+      const hourNum = Number.parseInt(match[1], 10);
+      const minuteText = match[2];
+      const parsedPeriod = match[3]?.toUpperCase();
+      if (parsedPeriod === "AM" || parsedPeriod === "PM") {
+        return `${((hourNum % 12) || 12)}:${minuteText} ${parsedPeriod}`;
+      }
+      if (hourNum >= 0 && hourNum <= 23) {
+        const isPm = hourNum >= 12;
+        return `${((hourNum % 12) || 12)}:${minuteText} ${isPm ? "PM" : "AM"}`;
+      }
+    }
+  }
+
+  const rawHour = typeof input.hour === "string" ? Number.parseInt(input.hour, 10) : input.hour;
+  if (typeof rawHour !== "number" || Number.isNaN(rawHour)) return "";
+
+  const minuteNumber = typeof input.minute === "string"
+    ? Number.parseInt(input.minute, 10)
+    : (typeof input.minute === "number" ? input.minute : 0);
+  const safeMinute = Number.isFinite(minuteNumber) ? Math.max(0, Math.min(59, minuteNumber)) : 0;
+  const minuteText = String(safeMinute).padStart(2, "0");
+
+  const parsedPeriod = typeof input.period === "string" ? input.period.toUpperCase() : "";
+  if (parsedPeriod === "AM" || parsedPeriod === "PM") {
+    return `${((rawHour % 12) || 12)}:${minuteText} ${parsedPeriod}`;
+  }
+
+  if (rawHour >= 0 && rawHour <= 23) {
+    const isPm = rawHour >= 12;
+    return `${((rawHour % 12) || 12)}:${minuteText} ${isPm ? "PM" : "AM"}`;
+  }
+
+  return "";
+}
+
+export function formatCourseSchedule(input: CourseScheduleInput): string {
+  const uniqueDays = Array.from(
+    new Set((input.days ?? []).map(normalizeDayLabel).filter((value): value is string => Boolean(value)))
+  );
+  const orderedDays = DAY_INDEX_TO_LABEL.filter((day) => uniqueDays.includes(day));
+  const dayLabel = orderedDays.join(", ");
+  const timeLabel = formatDisplayTime(input);
+
+  if (dayLabel && timeLabel) return `${dayLabel} • ${timeLabel}`;
+  if (dayLabel) return dayLabel;
+  return timeLabel;
+}
+
+function getCourseAccentColor(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  return COURSE_ACCENT_COLORS[Math.abs(hash) % COURSE_ACCENT_COLORS.length];
+}
+
 export function Personal() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  const { notes } = useNotes();
   const [messages, setMessages] = useState<{role: "user"|"assistant", content: string}[]>([
     { role: "assistant", content: "Hi! I'm Lumi, your AI study assistant. Ready to organize your tasks or summarize some notes?" },
   ]);
@@ -49,8 +150,120 @@ export function Personal() {
   const [isSavingCourse, setIsSavingCourse] = useState(false);
   const [courses, setCourses] = useState<PersonalCourse[]>([]);
   const [courseDeleteTarget, setCourseDeleteTarget] = useState<PersonalCourse | null>(null);
+  const [deleteCourseStep, setDeleteCourseStep] = useState<1 | 2>(1);
+  const [deleteWithNotes, setDeleteWithNotes] = useState(false);
+  const [deleteAcknowledge, setDeleteAcknowledge] = useState(false);
+  const [deleteConfirmCode, setDeleteConfirmCode] = useState("");
+  const [isDeletingCourse, setIsDeletingCourse] = useState(false);
   const [currentCourseSlide, setCurrentCourseSlide] = useState(0);
   const [isBackendAvailable, setIsBackendAvailable] = useState(true);
+  const noteCourseStorageKey = user ? `luminote-note-course-map-${user.id}` : "luminote-note-course-map-guest";
+
+  const getTotalNoteCountForCourse = (courseId: string): number => {
+    const directNotes = notes.filter((note) => note.course_id === courseId);
+
+    let mappedNotes = [] as typeof directNotes;
+    try {
+      const raw = localStorage.getItem(noteCourseStorageKey);
+      const mapping = raw ? JSON.parse(raw) : {};
+      if (mapping && typeof mapping === "object") {
+        mappedNotes = notes.filter((note) => (mapping as Record<string, string | undefined>)[note.id] === courseId);
+      }
+    } catch {
+      mappedNotes = [];
+    }
+
+    const noteIds = new Set<string>();
+    for (const note of directNotes) noteIds.add(note.id);
+    for (const note of mappedNotes) noteIds.add(note.id);
+
+    try {
+      const rawStoredNotes = localStorage.getItem(`notes-${courseId}`);
+      const storedNotes = rawStoredNotes ? JSON.parse(rawStoredNotes) : [];
+      if (Array.isArray(storedNotes)) {
+        for (const storedNote of storedNotes) {
+          if (storedNote && typeof storedNote.id === "string") {
+            noteIds.add(storedNote.id);
+          }
+        }
+      }
+    } catch {
+      // Ignore malformed local note cache.
+    }
+
+    // Count notes in folders for this course
+    try {
+      const rawFolders = localStorage.getItem(`folders-${courseId}`);
+      const folders = rawFolders ? JSON.parse(rawFolders) : [];
+      if (Array.isArray(folders)) {
+        for (const folder of folders) {
+          if (!folder || !Array.isArray(folder.notes)) continue;
+          for (const noteId of folder.notes) {
+            if (typeof noteId === "string") noteIds.add(noteId);
+          }
+        }
+      }
+    } catch {
+      // Keep fallback behavior when folders cache is malformed.
+    }
+
+    return noteIds.size;
+  };
+
+  const getUnassignedNoteCountForCourse = (courseId: string): number => {
+    const directNotes = notes.filter((note) => note.course_id === courseId);
+
+    let mappedNotes = [] as typeof directNotes;
+    try {
+      const raw = localStorage.getItem(noteCourseStorageKey);
+      const mapping = raw ? JSON.parse(raw) : {};
+      if (mapping && typeof mapping === "object") {
+        mappedNotes = notes.filter((note) => (mapping as Record<string, string | undefined>)[note.id] === courseId);
+      }
+    } catch {
+      mappedNotes = [];
+    }
+
+    const noteIds = new Set<string>();
+    for (const note of directNotes) noteIds.add(note.id);
+    for (const note of mappedNotes) noteIds.add(note.id);
+
+    try {
+      const rawStoredNotes = localStorage.getItem(`notes-${courseId}`);
+      const storedNotes = rawStoredNotes ? JSON.parse(rawStoredNotes) : [];
+      if (Array.isArray(storedNotes)) {
+        for (const storedNote of storedNotes) {
+          if (storedNote && typeof storedNote.id === "string") {
+            noteIds.add(storedNote.id);
+          }
+        }
+      }
+    } catch {
+      // Ignore malformed local note cache.
+    }
+
+    const assignedNoteIds = new Set<string>();
+    try {
+      const rawFolders = localStorage.getItem(`folders-${courseId}`);
+      const folders = rawFolders ? JSON.parse(rawFolders) : [];
+      if (Array.isArray(folders)) {
+        for (const folder of folders) {
+          if (!folder || !Array.isArray(folder.notes)) continue;
+          for (const noteId of folder.notes) {
+            if (typeof noteId === "string") assignedNoteIds.add(noteId);
+          }
+        }
+      }
+    } catch {
+      // Keep fallback behavior when folders cache is malformed.
+    }
+
+    let unassignedCount = 0;
+    for (const noteId of noteIds.values()) {
+      if (!assignedNoteIds.has(noteId)) unassignedCount += 1;
+    }
+    return unassignedCount;
+  };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,72 +277,6 @@ export function Personal() {
         setCourses(readCachedCourses());
         return;
       }
-
-        {courseDeleteTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-md p-4">
-            <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
-              <div className="bg-gradient-to-r from-rose-50 to-orange-50 px-6 py-5 border-b border-rose-100">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-rose-600 shadow-sm ring-1 ring-rose-100">
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Delete course
-                    </div>
-                    <h3 className="mt-3 text-2xl font-bold text-slate-900">Remove {courseDeleteTarget.title}?</h3>
-                    <p className="mt-2 text-sm text-slate-600">
-                      You can delete only the course, or delete the course and its saved notes/folders.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setCourseDeleteTarget(null)}
-                    className="rounded-full p-2 text-slate-400 hover:bg-white hover:text-slate-600 transition-colors"
-                    aria-label="Close warning dialog"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="px-6 py-5">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                    <FileText className="w-4 h-4 text-slate-500" />
-                    Notes safety
-                  </div>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Deleting the course alone keeps notes, folders, and course data stored for later.
-                    If you choose the full delete, those saved notes will be removed too.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3 px-6 pb-6 md:flex-row md:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setCourseDeleteTarget(null)}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteCourse(courseDeleteTarget, false)}
-                  className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 hover:bg-amber-100 transition-colors"
-                >
-                  Delete course only
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteCourse(courseDeleteTarget, true)}
-                  className="rounded-xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white hover:bg-rose-700 transition-colors"
-                >
-                  Delete course and notes
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
       const { data, error } = await supabase
         .from("user_courses")
@@ -152,7 +299,7 @@ export function Personal() {
           code: row.code,
           title: row.title,
           subtitle: row.subtitle || "No subtitle provided",
-          notesCount: 0,
+          notesCount: getTotalNoteCountForCourse(row.id),
           deadlineText: "No deadlines",
           statusText: "Active",
           days: row.schedule_days || [],
@@ -174,6 +321,34 @@ export function Personal() {
       cancelled = true;
     };
   }, [user]);
+
+  // Update note counts whenever notes change (realtime)
+  useEffect(() => {
+    setCourses(prev => 
+      prev.map(course => ({
+        ...course,
+        notesCount: getTotalNoteCountForCourse(course.id),
+      }))
+    );
+  }, [noteCourseStorageKey, notes]);
+
+  useEffect(() => {
+    const syncCountsFromStorage = () => {
+      setCourses(prev =>
+        prev.map(course => ({
+          ...course,
+          notesCount: getTotalNoteCountForCourse(course.id),
+        }))
+      );
+    };
+
+    window.addEventListener("storage", syncCountsFromStorage);
+    window.addEventListener("focus", syncCountsFromStorage);
+    return () => {
+      window.removeEventListener("storage", syncCountsFromStorage);
+      window.removeEventListener("focus", syncCountsFromStorage);
+    };
+  }, [noteCourseStorageKey, notes]);
 
   const sendChat = () => {
     if (!input.trim()) return;
@@ -207,7 +382,11 @@ export function Personal() {
 
   const formatCourseTime = () => {
     if (!newCourse.timeHour) return "";
-    return `${newCourse.timeHour}:${newCourse.timeMinute} ${newCourse.timePeriod}`;
+    return formatDisplayTime({
+      hour: Number.parseInt(newCourse.timeHour, 10),
+      minute: Number.parseInt(newCourse.timeMinute, 10),
+      period: newCourse.timePeriod,
+    });
   };
 
   const readCachedCourses = (): PersonalCourse[] => {
@@ -395,7 +574,7 @@ export function Personal() {
       code: data.code,
       title: data.title,
       subtitle: data.subtitle || "No subtitle provided",
-      notesCount: 0,
+      notesCount: getTotalNoteCountForCourse(data.id),
       deadlineText: "No deadlines",
       statusText: "Active",
       days: data.schedule_days || [],
@@ -450,12 +629,37 @@ export function Personal() {
     toast.success(deleteNotes ? "Course and notes deleted." : "Course deleted. Notes were kept.");
   };
 
+  const closeDeleteDialog = () => {
+    setCourseDeleteTarget(null);
+    setDeleteCourseStep(1);
+    setDeleteWithNotes(false);
+    setDeleteAcknowledge(false);
+    setDeleteConfirmCode("");
+    setIsDeletingCourse(false);
+  };
+
+  const openDeleteDialog = (course: PersonalCourse) => {
+    setCourseDeleteTarget(course);
+    setDeleteCourseStep(1);
+    setDeleteWithNotes(false);
+    setDeleteAcknowledge(false);
+    setDeleteConfirmCode("");
+    setIsDeletingCourse(false);
+  };
+
+  const submitDeleteCourse = async () => {
+    if (!courseDeleteTarget) return;
+    setIsDeletingCourse(true);
+    await deleteCourse(courseDeleteTarget, deleteWithNotes);
+    closeDeleteDialog();
+  };
+
   return (
-    <div className="h-full overflow-y-auto font-outfit flex items-center justify-center" style={{ backgroundColor: "var(--bg-main)", color: "var(--text-primary)" }}>
-      <div className="max-w-[1200px] w-full p-4 md:p-8">
+    <div className="flex h-full justify-center overflow-y-auto font-outfit" style={{ backgroundColor: "var(--bg-main)", color: "var(--text-primary)" }}>
+      <div className="w-full max-w-[1320px] p-3 sm:p-4 lg:p-5 min-[1440px]:p-6">
         
         {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6 pt-2">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-3 mb-4 pt-1">
           <div>
             <h1 className="text-3xl font-bold font-serif tracking-tight text-slate-900 mb-1">Personal Hub</h1>
             <p className="text-sm text-slate-500 font-medium tracking-wide">Manage your academic journey and campus life.</p>
@@ -499,7 +703,7 @@ export function Personal() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 tracking-wide mb-2.5 uppercase">Schedule (Optional)</label>
-                  <div className="grid grid-cols-4 gap-2 mb-3">
+                  <div className="mb-3 grid grid-cols-3 gap-2 min-[480px]:grid-cols-4 sm:grid-cols-7">
                     {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
                       <button
                         key={day}
@@ -581,7 +785,130 @@ export function Personal() {
           </div>
         )}
 
-        <main className="grid gap-6">
+        {courseDeleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 backdrop-blur-sm p-4">
+            <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+              <div className="bg-gradient-to-r from-rose-50 to-orange-50 px-6 py-5 border-b border-rose-100">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-rose-600 shadow-sm ring-1 ring-rose-100">
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete course
+                    </div>
+                    <h3 className="mt-3 text-2xl font-bold text-slate-900">Remove {courseDeleteTarget.title}?</h3>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Two-step verification is required before this action can proceed.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeDeleteDialog}
+                    className="rounded-full p-2 text-slate-400 hover:bg-white hover:text-slate-600 transition-colors"
+                    aria-label="Close delete dialog"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="px-6 py-5">
+                {deleteCourseStep === 1 ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="text-sm font-semibold text-slate-800 mb-2">Step 1 of 2: Choose delete mode</div>
+                      <div className="space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => setDeleteWithNotes(false)}
+                          className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
+                            !deleteWithNotes
+                              ? "border-blue-300 bg-blue-50 text-blue-700"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          Delete course only
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteWithNotes(true)}
+                          className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
+                            deleteWithNotes
+                              ? "border-rose-300 bg-rose-50 text-rose-700"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          Delete course and local notes/folders
+                        </button>
+                      </div>
+                    </div>
+
+                    <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={deleteAcknowledge}
+                        onChange={(event) => setDeleteAcknowledge(event.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                      />
+                      <span className="text-sm text-slate-700">
+                        I understand this cannot be undone.
+                      </span>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                      <div className="text-sm font-semibold text-rose-700 mb-1">Step 2 of 2: Verify course code</div>
+                      <p className="text-sm text-rose-700/90">
+                        Type <span className="font-bold">{courseDeleteTarget.code}</span> to confirm deletion.
+                      </p>
+                    </div>
+                    <input
+                      type="text"
+                      value={deleteConfirmCode}
+                      onChange={(event) => setDeleteConfirmCode(event.target.value)}
+                      placeholder="Enter course code"
+                      className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3 px-6 pb-6 md:flex-row md:justify-end">
+                <button
+                  type="button"
+                  onClick={deleteCourseStep === 1 ? closeDeleteDialog : () => setDeleteCourseStep(1)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  {deleteCourseStep === 1 ? "Cancel" : "Back"}
+                </button>
+                {deleteCourseStep === 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteCourseStep(2)}
+                    disabled={!deleteAcknowledge}
+                    className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-800 transition-colors"
+                  >
+                    Continue
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={submitDeleteCourse}
+                    disabled={
+                      isDeletingCourse ||
+                      deleteConfirmCode.trim().toUpperCase() !== courseDeleteTarget.code.toUpperCase()
+                    }
+                    className="rounded-xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-rose-700 transition-colors"
+                  >
+                    {isDeletingCourse ? "Deleting..." : "Delete Permanently"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <main className="grid gap-4">
         
         {/* Courses Section */}
         <section>
@@ -594,32 +921,37 @@ export function Personal() {
 
 
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {courses.length === 0 ? (
-              <div className="md:col-span-3 flex flex-col items-center justify-center p-12 bg-white rounded-2xl border-2 border-dashed border-slate-200 text-center">
-                <div className="w-14 h-14 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mb-4">
-                  <BookOpen className="w-6 h-6" />
+              <div className="md:col-span-3 flex flex-col items-center justify-center p-8 bg-white rounded-2xl border-2 border-dashed border-slate-200 text-center">
+                <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mb-3">
+                  <BookOpen className="w-5 h-5" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-1">No courses organized yet</h3>
-                <p className="text-sm text-slate-500 max-w-sm mb-6">Create a new schedule to start organizing notes, tracking deadlines, and managing your coursework seamlessly.</p>
-                <button onClick={() => setIsAddCourseOpen(true)} className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-xl shadow-sm shadow-blue-500/20 transition-colors">
-                  <Plus className="w-4 h-4" strokeWidth={3} />
+                <h3 className="text-base font-bold text-slate-800 mb-1">No courses organized yet</h3>
+                <p className="text-sm text-slate-500 max-w-sm mb-4">Create a new schedule to start organizing notes, tracking deadlines, and managing your coursework seamlessly.</p>
+                <button onClick={() => setIsAddCourseOpen(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-xl shadow-sm shadow-blue-500/20 transition-colors">
+                  <Plus className="w-3.5 h-3.5" strokeWidth={3} />
                   Add First Course
                 </button>
               </div>
             ) : (
               courses.slice(currentCourseSlide * 3, (currentCourseSlide + 1) * 3).map(course => (
+                (() => {
+                  const scheduleLabel = formatCourseSchedule({ days: course.days, time: course.time });
+                  const accentColor = getCourseAccentColor(`${course.code}-${course.title}`);
+                  return (
                 <div
                   key={course.id}
                   onClick={() => {
                     localStorage.setItem(`course-${course.id}`, JSON.stringify(course));
                     navigate(`/home/personal/course/${course.id}`);
                   }}
-                  className="bg-white rounded-2xl p-4 border border-slate-200/60 shadow-sm hover:shadow-md transition-shadow relative cursor-pointer hover:border-blue-300 group"
+                  className="bg-white rounded-2xl p-3.5 border border-slate-200/60 border-l-4 shadow-sm hover:shadow-md transition-shadow relative cursor-pointer hover:border-blue-300 group"
+                  style={{ borderLeftColor: accentColor }}
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="w-10 h-10 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center">
-                      <BookOpen className="w-5 h-5" />
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="w-9 h-9 text-slate-500 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${accentColor}1A` }}>
+                      <BookOpen className="w-4.5 h-4.5" />
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <span className="text-[10px] font-bold text-slate-400 tracking-wider">{course.code}</span>
@@ -629,7 +961,7 @@ export function Personal() {
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
-                            setCourseDeleteTarget(course);
+                            openDeleteDialog(course);
                           }}
                           className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 opacity-70 group-hover:opacity-100 transition-all"
                           aria-label={`Delete ${course.title}`}
@@ -640,34 +972,32 @@ export function Personal() {
                       </div>
                     </div>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-800 mb-0.5">{course.title}</h3>
+                  <h3 className="text-base font-bold text-slate-800 mb-0.5">{course.title}</h3>
                   <p className="text-slate-500 text-xs font-medium mb-3">{course.subtitle}</p>
                   
-                  {(course.days && course.days.length > 0) && (
+                  {scheduleLabel && (
                     <div className="mb-4 pb-4 border-b border-slate-100">
-                      <div className="text-[9px] font-bold tracking-wider text-slate-400 mb-1.5">SCHEDULE</div>
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {course.days.map(day => (
-                          <span key={day} className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-md">
-                            {day}
-                          </span>
-                        ))}
+                      <div className="inline-flex items-center gap-1.5 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700">
+                        <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{scheduleLabel}</span>
+                        <Clock3 className="w-3.5 h-3.5 text-slate-400" />
                       </div>
-                      {course.time && <div className="text-xs text-slate-600 font-medium">⏰ {course.time}</div>}
                     </div>
                   )}
                   
                   <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                     <div>
                       <div className="text-[9px] font-bold tracking-wider text-slate-400 mb-0.5">TOTAL NOTES</div>
-                      <div className="text-sm font-semibold text-slate-700">0 Files</div>
+                      <div className="text-sm font-semibold text-slate-700">{course.notesCount} {course.notesCount === 1 ? "Note" : "Notes"}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[9px] font-bold tracking-wider text-slate-400 mb-0.5">NEXT DEADLINE</div>
-                      <div className="text-sm font-semibold text-slate-500">None yet</div>
+                      <div className="text-[9px] font-bold tracking-wider text-slate-400 mb-0.5">SCHEDULE</div>
+                      <div className="text-sm font-semibold text-slate-600">{scheduleLabel || "No schedule yet"}</div>
                     </div>
                   </div>
                 </div>
+                  );
+                })()
               ))
             )}
           </div>
@@ -698,233 +1028,12 @@ export function Personal() {
         </section>
 
         {/* Lower Grid: Tasks & Chat */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-2">
+        {/* Responsive split: stacks vertically on phones, side-by-side on large screens. */}
+          <div className="mt-1 grid grid-cols-1 gap-4 lg:grid-cols-12">
           
           {/* Tasks Column */}
-          <div className="lg:col-span-7 xl:col-span-7 flex flex-col h-[320px]">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-blue-500 font-black text-xl">!</span>
-                <h2 className="text-lg font-bold text-slate-800">My Schedule & Tasks</h2>
-              </div>
-            </div>
-
-            {/* Tasks List */}
-            <div className="flex flex-col gap-3 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 flex-1">
-              {tasks.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center text-sm font-medium text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-                  No tasks added yet. Create one below!
-                </div>
-              ) : (
-                tasks.map((task) => (
-                  <div key={task.id} 
-                    className={`bg-white rounded-xl p-4 border border-slate-200/60 shadow-sm flex items-center gap-3 hover:shadow-md transition-all group ${task.completed ? 'opacity-50' : ''}`}
-                  >
-                    <div className="text-slate-300 cursor-grab hover:text-slate-400">
-                      <GripVertical className="w-4 h-4" />
-                    </div>
-                    
-                    {/* Checkbox */}
-                    <div 
-                      onClick={() => toggleTask(task.id)}
-                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors ${
-                        task.completed 
-                          ? 'bg-blue-500 border-blue-500' 
-                          : 'border-slate-200 group-hover:border-blue-400'
-                      }`}
-                    >
-                      {task.completed && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-                    </div>
-                    
-                    <div className="flex-1 overflow-hidden">
-                      <h4 className={`text-sm font-bold text-slate-800 mb-0.5 truncate ${task.completed ? 'line-through text-slate-500' : ''}`}>
-                        {task.title}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 font-medium truncate">{task.subtext}</p>
-                      {(task.date || task.time) && (
-                        <div className="text-[10px] text-slate-400 font-medium mt-1">
-                          {task.date && <span>{task.date}</span>}
-                          {task.date && task.time && <span> • </span>}
-                          {task.time && <span>{task.time}</span>}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <span className={`px-2.5 py-1 rounded-md text-[9px] font-black tracking-wider ${getTaskStatus(task).color}`}>
-                      {getTaskStatus(task).label}
-                    </span>
-
-                    <button
-                      onClick={() => deleteTask(task.id)}
-                      className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-red-50 rounded-lg"
-                      title="Delete task"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            {/* Add Task Button */}
-            <button
-              onClick={() => setIsAddTaskOpen(true)}
-              className="mt-4 w-full px-4 py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold rounded-xl border border-blue-200 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
-            >
-              <Plus className="w-5 h-5" strokeWidth={2.5} />
-              Add New Task
-            </button>
-
-            {/* Add Task Modal */}
-            {isAddTaskOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-sm p-4">
-                <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xl font-bold text-slate-800">Add New Task</h3>
-                    <button onClick={() => setIsAddTaskOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1 bg-slate-50 hover:bg-slate-100 rounded-full">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <form onSubmit={handleAddTask} className="flex flex-col gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 tracking-wide mb-1.5 uppercase">Task Title</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Complete Math homework"
-                        value={newTaskTitle}
-                        onChange={(e) => setNewTaskTitle(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
-                        autoFocus
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 tracking-wide mb-1.5 uppercase">Description (Optional)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Chapters 5-7"
-                        value={newTaskSubtext}
-                        onChange={(e) => setNewTaskSubtext(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 tracking-wide mb-1.5 uppercase">Date (Optional)</label>
-                        <div className="relative group">
-                          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors pointer-events-none z-0">
-                            <Calendar className="w-4 h-4" />
-                          </div>
-                          <input
-                            type="date"
-                            value={newTaskDate}
-                            onChange={(e) => setNewTaskDate(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium appearance-none group-focus-within:bg-blue-50 group-focus-within:border-blue-400 focus:ring-0 focus:outline-none transition-all cursor-pointer hover:bg-slate-100"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 tracking-wide mb-2.5 uppercase flex items-center gap-2">
-                          <Clock3 className="w-4 h-4" />
-                          Time (Optional)
-                        </label>
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-3 gap-2">
-                            <div>
-                              <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-1.5 uppercase">Hour</div>
-                              <select
-                                value={newTaskHours}
-                                onChange={(e) => setNewTaskHours(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-center focus:bg-blue-50 focus:border-blue-400 focus:ring-0 focus:outline-none transition-all cursor-pointer hover:bg-slate-100"
-                              >
-                                <option value="">--</option>
-                                {Array.from({ length: 12 }, (_, i) => {
-                                  const hour = String(i + 1).padStart(2, "0");
-                                  return <option key={hour} value={hour}>{hour}</option>;
-                                })}
-                              </select>
-                            </div>
-                            <div>
-                              <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-1.5 uppercase">Minute</div>
-                              <select
-                                value={newTaskMinutes}
-                                onChange={(e) => setNewTaskMinutes(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-center focus:bg-blue-50 focus:border-blue-400 focus:ring-0 focus:outline-none transition-all cursor-pointer hover:bg-slate-100"
-                              >
-                                {Array.from({ length: 60 }, (_, i) => {
-                                  const minute = String(i).padStart(2, "0");
-                                  return <option key={minute} value={minute}>{minute}</option>;
-                                })}
-                              </select>
-                            </div>
-                            <div>
-                              <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-1.5 uppercase">AM/PM</div>
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => setNewTaskPeriod("AM")}
-                                  className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${
-                                    newTaskPeriod === "AM"
-                                      ? "bg-blue-500 text-white shadow-sm shadow-blue-500/20"
-                                      : "bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100"
-                                  }`}
-                                >
-                                  AM
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setNewTaskPeriod("PM")}
-                                  className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${
-                                    newTaskPeriod === "PM"
-                                      ? "bg-blue-500 text-white shadow-sm shadow-blue-500/20"
-                                      : "bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100"
-                                  }`}
-                                >
-                                  PM
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 flex items-center justify-between">
-                            <span className="text-xs font-medium text-slate-500">Preview</span>
-                            <span className="text-sm font-semibold text-slate-700">
-                              {newTaskHours ? `${newTaskHours}:${newTaskMinutes} ${newTaskPeriod}` : "No time set"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 tracking-wide mb-2.5 uppercase">Priority</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {statusOptions.map(option => (
-                          <button
-                            key={option.label}
-                            type="button"
-                            onClick={() => setNewTaskStatus(option.label)}
-                            className={`px-3 py-2 rounded-lg text-xs font-bold tracking-wider transition-all ${
-                              newTaskStatus === option.label
-                                ? `${option.color} ring-2 ring-offset-2 ring-current`
-                                : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={!newTaskTitle.trim()}
-                      className="w-full mt-2 py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add Task
-                    </button>
-                  </form>
-                </div>
-              </div>
-            )}
+          <div className="flex min-h-[280px] flex-col lg:col-span-7 xl:col-span-7 lg:h-[300px]">
+            <ProfileSection />
           </div>
 
           {/* Chat Column */}
@@ -934,11 +1043,11 @@ export function Personal() {
               <h2 className="text-lg font-bold text-slate-800">Lumi AI</h2>
             </div>
 
-            <div className="bg-white rounded-[1.5rem] border border-slate-200/60 shadow-lg shadow-slate-200/40 p-3 h-[320px] flex flex-col relative overflow-hidden">
+            <div className="relative flex min-h-[280px] flex-col overflow-hidden rounded-[1.5rem] border border-slate-200/60 bg-white p-2.5 shadow-lg shadow-slate-200/40 lg:h-[300px]">
               
               {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                <div className="flex flex-col gap-5 pb-6">
+              <div className="flex-1 overflow-y-auto p-1.5 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                <div className="flex flex-col gap-4 pb-4">
                   {messages.map((m, idx) => (
                     <div key={idx} className={`flex items-start gap-3 ${m.role === 'assistant' ? '' : 'flex-row-reverse'}`}>
                       {m.role === 'assistant' ? (
@@ -966,7 +1075,7 @@ export function Personal() {
               </div>
 
               {/* Action Chips */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-4 drop-shadow-sm px-2 scrollbar-none">
+              <div className="flex items-center gap-2 overflow-x-auto pb-3 drop-shadow-sm px-2 scrollbar-none">
                 <button className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-semibold text-slate-600 whitespace-nowrap hover:bg-slate-50">
                   <FileText className="w-3.5 h-3.5" />
                   Summarize Notes

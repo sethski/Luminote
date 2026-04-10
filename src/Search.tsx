@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Link } from "react-router";
-import { Search as SearchIcon, Filter, X, Hash, MoreVertical, FileText, Calendar as CalendarIcon, Pin, Star } from "lucide-react";
+import { Search as SearchIcon, Filter, X, Hash, MoreVertical, FileText, Calendar as CalendarIcon, Pin, Star, Check } from "lucide-react";
 import { format } from "date-fns";
 import { useNotes, Note } from "./NotesContext";
 
@@ -31,16 +31,16 @@ export function Search() {
   }, [notes, searchQuery, activeFilters]);
 
   const NoteResult = ({ note }: { note: Note }) => (
-    <Link to={`/home/editor/${note.id}`} className="flex items-start gap-5 p-5 bg-white rounded-3xl border border-gray-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] hover:-translate-y-1 transition-all duration-300 group">
-      <div className="w-14 h-14 rounded-2xl bg-gray-50 text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500 flex items-center justify-center flex-shrink-0 transition-colors">
+    <Link to={`/home/editor/${note.id}`} className="group flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white p-4 shadow-[0_4px_24px_rgba(0,0,0,0.02)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] sm:flex-row sm:items-start sm:gap-5 sm:p-5">
+      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gray-50 text-gray-400 transition-colors group-hover:bg-blue-50 group-hover:text-blue-500">
         <FileText size={24} />
       </div>
       <div className="flex-1 min-w-0 py-1">
-        <div className="flex items-start justify-between gap-4 mb-2">
+        <div className="mb-2 flex flex-wrap items-start justify-between gap-2 sm:gap-4">
            <h3 className="font-bold text-gray-900 text-lg truncate">{note.title || "Untitled Note"}</h3>
            <div className="flex items-center gap-3 shrink-0">
              <span className="text-xs font-semibold text-gray-400">{format(new Date(note.updatedAt), "MMM d")}</span>
-             <button className="text-gray-300 hover:text-gray-900 transition-colors">
+             <button className="min-h-11 text-gray-300 transition-colors hover:text-gray-900">
                <MoreVertical size={18} />
              </button>
            </div>
@@ -59,23 +59,23 @@ export function Search() {
   );
 
   return (
-    <div className="h-full flex flex-col max-w-[900px] mx-auto w-full p-4 md:p-10">
+    <div className="mx-auto flex h-full w-full max-w-[1100px] flex-col p-4 sm:p-6 lg:p-8 min-[1440px]:max-w-[1320px] min-[1440px]:p-10">
       {/* Header */}
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight text-gray-900 mb-3">Search & Filter</h1>
-        <p className="text-gray-500 font-medium text-lg">Find what you need across all your workspace.</p>
+      <header className="mb-6 sm:mb-8">
+        <h1 className="mb-2 text-3xl font-bold tracking-tight text-gray-900 sm:mb-3 sm:text-4xl">Search & Filter</h1>
+        <p className="text-base font-medium text-gray-500 sm:text-lg">Find what you need across all your workspace.</p>
       </header>
 
       {/* Search Input */}
-      <div className="relative mb-8 group">
-        <div className="relative bg-white border border-gray-200 rounded-[24px] flex items-center shadow-[0_8px_32px_rgba(0,0,0,0.04)] focus-within:ring-4 focus-within:ring-[var(--color-primary)]/10 focus-within:border-[var(--color-primary)]/30 transition-all">
-          <SearchIcon className="ml-6 text-gray-400 group-focus-within:text-[var(--color-primary)] transition-colors" size={24} />
+      <div className="group relative mb-6 sm:mb-8">
+        <div className="relative flex items-center rounded-[20px] border border-gray-200 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.04)] transition-all focus-within:border-[var(--color-primary)]/30 focus-within:ring-4 focus-within:ring-[var(--color-primary)]/10 sm:rounded-[24px]">
+          <SearchIcon className="ml-4 text-gray-400 transition-colors group-focus-within:text-[var(--color-primary)] sm:ml-6" size={22} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search notes, tags, content..."
-            className="flex-1 py-5 px-5 text-lg bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 font-medium"
+            className="flex-1 border-none bg-transparent px-4 py-4 text-base font-medium text-gray-900 placeholder-gray-400 outline-none sm:px-5 sm:py-5 sm:text-lg"
             autoFocus
           />
           {searchQuery && (
@@ -90,7 +90,7 @@ export function Search() {
       </div>
 
       {/* Filters */}
-      <div className="mb-10">
+      <div className="mb-8 sm:mb-10">
         <div className="flex items-center gap-3 mb-4">
           <Filter size={18} className="text-gray-400" />
           <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Quick Filters</h3>
@@ -103,7 +103,7 @@ export function Search() {
               <button
                 key={tag}
                 onClick={() => toggleFilter(tag)}
-                className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 border ${
+                className={`flex min-h-11 items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all sm:px-5 ${
                   isActive 
                     ? "bg-[var(--color-primary)] text-white border-[var(--color-primary)] shadow-[0_4px_16px_rgba(79,126,255,0.3)]" 
                     : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:bg-gray-50 shadow-sm"
@@ -117,8 +117,8 @@ export function Search() {
       </div>
 
       {/* Results */}
-      <div className="flex-1 overflow-y-auto pb-8 pr-2 scrollbar-hide">
-        <div className="flex items-center justify-between mb-6">
+      <div className="scrollbar-hide flex-1 overflow-y-auto pb-8 pr-1 sm:pr-2">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2 sm:mb-6">
            <h2 className="text-xl font-bold text-gray-900">
              Results
            </h2>
@@ -130,12 +130,12 @@ export function Search() {
             {filteredNotes.map(note => <NoteResult key={note.id} note={note} />)}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-24 text-center bg-white rounded-[32px] border border-dashed border-gray-200">
+          <div className="flex flex-col items-center justify-center rounded-[24px] border border-dashed border-gray-200 bg-white px-4 py-16 text-center sm:rounded-[32px] sm:py-24">
             <div className="w-20 h-20 bg-gray-50 rounded-[24px] flex items-center justify-center mb-6">
               <SearchIcon size={32} className="text-gray-300" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">No matches found</h3>
-            <p className="text-gray-500 font-medium text-lg max-w-md mx-auto">
+            <h3 className="mb-2 text-xl font-bold text-gray-900 sm:text-2xl">No matches found</h3>
+            <p className="mx-auto max-w-md text-base font-medium text-gray-500 sm:text-lg">
               We couldn't find any notes matching your criteria. Try adjusting your search or filters.
             </p>
             {(searchQuery || activeFilters.length > 0) && (

@@ -81,6 +81,14 @@ const CSS = `
   transition:all .2s;
 }
 .fc-btn-outline:hover { border-color:#6366F1;color:#6366F1;transform:translateY(-1px); }
+
+/* Mobile-first responsive adjustments for modal and stack layouts. */
+@media (max-width: 768px) {
+  .fc-overlay { align-items: flex-start; padding: 12px; }
+  .fc-stack-card { border-radius: 16px; }
+  .fc-btn-primary,
+  .fc-btn-outline { min-height: 44px; }
+}
 `;
 
 /* ─── Constants ─────────────────────────────────── */
@@ -440,7 +448,7 @@ export function Flashcards() {
       {mode === "study" && studyCard && (
         <div style={{ minHeight: "100vh", background: "#FAFAF8", display: "flex", flexDirection: "column" }}>
           {/* Study header */}
-          <div style={{ padding: "16px 24px", borderBottom: "1px solid #EBEBEB", background: "white", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ padding: "14px clamp(14px, 3vw, 24px)", borderBottom: "1px solid #EBEBEB", background: "white", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <button type="button" onClick={() => { setMode(activeStack ? "stack-detail" : "stacks"); setFlipped(false); setStudyIdx(0); }}
               style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #E5E7EB", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}>
               <ArrowLeft size={16} />
@@ -454,7 +462,7 @@ export function Flashcards() {
             </div>
           </div>
 
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", gap: 28 }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px clamp(14px, 3vw, 24px)", gap: 24 }}>
             {/* Progress bar */}
             <div style={{ width: "100%", maxWidth: 560, height: 4, borderRadius: 4, background: "#E5E7EB" }}>
               <div style={{ height: "100%", borderRadius: 4, background: stackGradient, width: `${((studyIdx + 1) / studyCards.length) * 100}%`, transition: "width .4s ease" }} />
@@ -526,7 +534,7 @@ export function Flashcards() {
             )}
           </div>
 
-          <div style={{ maxWidth: 760, margin: "0 auto", padding: "28px 20px" }}>
+          <div style={{ maxWidth: 960, margin: "0 auto", padding: "24px clamp(14px, 3vw, 24px)" }}>
             {/* AI Generate */}
             <div className="fc-a1" style={{ background: "white", borderRadius: 20, border: "1px solid #EBEBEB", padding: 20, marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -604,7 +612,7 @@ export function Flashcards() {
       {mode === "stacks" && (
         <div style={{ minHeight: "100vh", background: "#F4F5F7" }}>
           {/* Header */}
-          <div style={{ background: "white", borderBottom: "1px solid #EBEBEB", padding: "20px 28px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ background: "white", borderBottom: "1px solid #EBEBEB", padding: "16px clamp(14px, 3vw, 28px)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <button type="button" onClick={() => navigate(-1)}
               style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #E5E7EB", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}>
               <ArrowLeft size={16} />
@@ -613,7 +621,7 @@ export function Flashcards() {
               My Stacks
             </div>
             {/* Action buttons */}
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", width: "100%", justifyContent: "flex-end" }}>
               <button
                 type="button"
                 className="fc-btn-outline"
@@ -641,7 +649,7 @@ export function Flashcards() {
           </div>
 
           {/* Content */}
-          <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 24px" }}>
+          <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px clamp(14px, 3vw, 24px)" }}>
             {loading ? (
               <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
                 <Loader2 size={28} color="#6366F1" className="fc-spin" />

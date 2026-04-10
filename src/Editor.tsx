@@ -7,11 +7,12 @@ import {
   AlignCenter, AlignRight,
   Tag, PenTool, Eraser, Plus, X, Sparkles,
   FileText, ChevronDown, Bell, Clock, Image as ImageIcon,
-  Star,
+  Star, RotateCw, GraduationCap,
 } from "lucide-react";
 import { useNotes } from "./NotesContext";
 import { useAuth } from "./AuthContext";
 import { useToast } from "./toast";
+import { supabase } from "./supabaseClient";
 
 /* ═══════════════════════════════════════════════════
    CONSTANTS
@@ -71,6 +72,13 @@ const HEADING_OPTIONS = [
 
 const FONT_SIZES = [10, 12, 13, 14, 15, 16, 18, 20, 24, 28, 32, 36, 48];
 
+type PersonalCourse = {
+  id: string;
+  code?: string;
+  title: string;
+  subtitle?: string;
+};
+
 /* ─── Drawing palette colors (5x6 grid approx) ── */
 const DRAW_PALETTE = [
   "#000000","#434343","#666666","#999999","#B7B7B7","#CCCCCC","#D9D9D9","#EFEFEF","#F3F3F3","#FFFFFF",
@@ -120,10 +128,17 @@ function applyFontSizeToSelection(size: number) {
   const editor = document.querySelector("[data-luminote-editor]");
   if (!editor) return;
   editor.querySelectorAll('font[size="7"]').forEach(el => {
+    // Verify element still exists in DOM before replacement
+    if (!el.parentNode) return;
     const span = document.createElement("span");
     span.style.fontSize = `${size}px`;
     span.innerHTML = el.innerHTML;
-    el.parentNode?.replaceChild(span, el);
+    try {
+      el.parentNode.replaceChild(span, el);
+    } catch (e) {
+      // Element may have been removed, silently continue
+      console.debug("Font replacement skipped: element no longer in DOM");
+    }
   });
 }
 
@@ -162,6 +177,87 @@ function hexToRgba(hex: string, alpha: number): string {
   const g = parseInt(c.substring(2, 4), 16);
   const b = parseInt(c.substring(4, 6), 16);
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function getDrawStorageKey(noteId: string): string {
+  return `luminote-draw-${noteId}`;
+}
+
+type EditorDraft = {
+  title: string;
+  content: string;
+  savedAt: string;
+};
+
+function getEditorDraftStorageKey(noteId: string, userId?: string): string {
+  return userId ? `luminote-note-draft-${userId}-${noteId}` : `luminote-note-draft-${noteId}`;
+}
+
+function readEditorDraft(storageKey: string): EditorDraft | null {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.title !== "string" || typeof parsed.content !== "string" || typeof parsed.savedAt !== "string") {
+      return null;
+    }
+    return parsed as EditorDraft;
+  } catch {
+    return null;
+  }
+}
+
+function writeEditorDraft(storageKey: string, draft: EditorDraft): void {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(draft));
+  } catch {
+    // Ignore storage quota / privacy mode failures.
+  }
+}
+
+function clearEditorDraft(storageKey: string): void {
+  try {
+    localStorage.removeItem(storageKey);
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+}
+
+const DRAW_EMBED_START = "<!--LUMINOTE_DRAW_START-->";
+const DRAW_EMBED_END = "<!--LUMINOTE_DRAW_END-->";
+
+function extractDrawDataFromContent(rawContent: string): { editorContent: string; drawData: string | null } {
+  if (!rawContent) return { editorContent: "", drawData: null };
+  const start = rawContent.indexOf(DRAW_EMBED_START);
+  const end = rawContent.indexOf(DRAW_EMBED_END);
+
+  if (start < 0 || end < 0 || end <= start) {
+    return { editorContent: rawContent, drawData: null };
+  }
+
+  const drawData = rawContent
+    .slice(start + DRAW_EMBED_START.length, end)
+    .trim();
+  const editorContent = `${rawContent.slice(0, start)}${rawContent.slice(end + DRAW_EMBED_END.length)}`.trim();
+
+  return { editorContent, drawData: drawData || null };
+}
+
+function mergeContentWithDrawData(editorContent: string, drawData: string | null): string {
+  if (!drawData) return editorContent || "";
+  return `${editorContent || ""}\n${DRAW_EMBED_START}${drawData}${DRAW_EMBED_END}`;
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("Failed to read image file."));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read image file."));
+    reader.readAsDataURL(file);
+  });
 }
 
 /* ═══════════════════════════════════════════════════
@@ -289,6 +385,203 @@ function DrawToolPalette({
   );
 }
 
+function TextColorPalette({
+  color,
+  pos,
+  onColorChange,
+  onClose,
+}: {
+  color: string;
+  pos: { top: number; left: number };
+  onColorChange: (c: string) => void;
+  onClose: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleColors = expanded ? DRAW_PALETTE : DRAW_PALETTE.slice(0, 10);
+
+  return (
+    <>
+      <div style={{ position: "fixed", inset: 0, zIndex: 99990 }} onMouseDown={onClose} />
+      <div
+        style={{
+          position: "fixed",
+          top: pos.top,
+          left: pos.left,
+          zIndex: 99999,
+          background: "white",
+          borderRadius: 12,
+          boxShadow: "0 16px 48px rgba(0,0,0,.18)",
+          padding: 12,
+          width: 220,
+          animation: "dtPop .15s ease both",
+        }}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 3, marginBottom: 8 }}>
+          {visibleColors.map(c => (
+            <button
+              key={c}
+              onMouseDown={e => {
+                e.preventDefault();
+                onColorChange(c);
+              }}
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: c,
+                border: color === c ? "2.5px solid #6366F1" : "1px solid rgba(0,0,0,.1)",
+                cursor: "pointer",
+                transition: "transform .1s",
+                transform: color === c ? "scale(1.2)" : "scale(1)",
+              }}
+              onMouseEnter={e => { if (color !== c) (e.currentTarget.style.transform = "scale(1.1)"); }}
+              onMouseLeave={e => { if (color !== c) (e.currentTarget.style.transform = "scale(1)"); }}
+            />
+          ))}
+        </div>
+
+        <button
+          onMouseDown={e => {
+            e.preventDefault();
+            setExpanded(v => !v);
+          }}
+          style={{
+            width: "100%",
+            padding: "3px 0",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#9CA3AF",
+            fontSize: 10,
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+          }}
+        >
+          <ChevronDown size={10} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+          {expanded ? "Less colors" : "More colors"}
+        </button>
+      </div>
+    </>
+  );
+}
+
+function HighlightColorPalette({
+  color,
+  pos,
+  onColorChange,
+  onClear,
+  onClose,
+}: {
+  color: string | null;
+  pos: { top: number; left: number };
+  onColorChange: (c: string) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleColors = expanded ? DRAW_PALETTE : DRAW_PALETTE.slice(0, 10);
+
+  return (
+    <>
+      <div style={{ position: "fixed", inset: 0, zIndex: 99990 }} onMouseDown={onClose} />
+      <div
+        style={{
+          position: "fixed",
+          top: pos.top,
+          left: pos.left,
+          zIndex: 99999,
+          background: "white",
+          borderRadius: 12,
+          boxShadow: "0 16px 48px rgba(0,0,0,.18)",
+          padding: 12,
+          width: 220,
+          animation: "dtPop .15s ease both",
+        }}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        <button
+          onMouseDown={e => {
+            e.preventDefault();
+            onClear();
+          }}
+          style={{
+            width: "100%",
+            border: "none",
+            background: "#F3F4F6",
+            color: "#374151",
+            borderRadius: 8,
+            height: 32,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            gap: 8,
+            padding: "0 10px",
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 600,
+            marginBottom: 10,
+          }}
+        >
+          <Eraser size={13} />
+          None
+        </button>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 3, marginBottom: 8 }}>
+          {visibleColors.map(c => (
+            <button
+              key={c}
+              onMouseDown={e => {
+                e.preventDefault();
+                onColorChange(c);
+              }}
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: c,
+                border: color?.toLowerCase() === c.toLowerCase() ? "2.5px solid #6366F1" : "1px solid rgba(0,0,0,.1)",
+                cursor: "pointer",
+                transition: "transform .1s",
+                transform: color?.toLowerCase() === c.toLowerCase() ? "scale(1.2)" : "scale(1)",
+              }}
+              onMouseEnter={e => { if (color?.toLowerCase() !== c.toLowerCase()) (e.currentTarget.style.transform = "scale(1.1)"); }}
+              onMouseLeave={e => { if (color?.toLowerCase() !== c.toLowerCase()) (e.currentTarget.style.transform = "scale(1)"); }}
+            />
+          ))}
+        </div>
+
+        <button
+          onMouseDown={e => {
+            e.preventDefault();
+            setExpanded(v => !v);
+          }}
+          style={{
+            width: "100%",
+            padding: "3px 0",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#9CA3AF",
+            fontSize: 10,
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+          }}
+        >
+          <ChevronDown size={10} style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+          {expanded ? "Less colors" : "More colors"}
+        </button>
+      </div>
+    </>
+  );
+}
+
 /* ═══════════════════════════════════════════════════
    MARKER SVG ICON
    ═══════════════════════════════════════════════════ */
@@ -308,8 +601,8 @@ function MarkerIcon({ size = 16, color = "currentColor" }: { size?: number; colo
 export function Editor() {
   const { id }     = useParams();
   const navigate   = useNavigate();
-  const { notes, notesLoading, updateNote, addNote, addReminder } = useNotes();
-  const { settings: userSettings } = useAuth();
+  const { notes, notesLoading, updateNote, addNote, addReminder, extractRemindersFromNote } = useNotes();
+  const { settings: userSettings, user } = useAuth();
   const toast = useToast();
 
   /* ── Tabs ── */
@@ -334,28 +627,60 @@ export function Editor() {
 
   /* ── Note data ── */
   const note = notes.find(n => n.id === id);
+  const parsedInitialContent = extractDrawDataFromContent(note?.content || "");
+  const noteDraftStorageKey = note ? getEditorDraftStorageKey(note.id, user?.id) : null;
   const [title,   setTitle]   = useState(note?.title   || "");
-  const [content, setContent] = useState(note?.content || "");
+  const [content, setContent] = useState(parsedInitialContent.editorContent || "");
+  const [drawSnapshot, setDrawSnapshot] = useState<string | null>(parsedInitialContent.drawData);
   const isDirty   = useRef(false);
+  const editorStateRef = useRef({
+    title: note?.title || "",
+    content: parsedInitialContent.editorContent || "",
+    drawSnapshot: parsedInitialContent.drawData as string | null,
+  });
   const editorRef = useRef<HTMLDivElement>(null);
+  const editorCanvasShellRef = useRef<HTMLDivElement>(null);
+
+  const activeImageRef = useRef<HTMLImageElement | null>(null);
+  const [activeImageBox, setActiveImageBox] = useState<{ visible: boolean; centerX: number; centerY: number; width: number; height: number; rotation: number }>({
+    visible: false,
+    centerX: 0,
+    centerY: 0,
+    width: 0,
+    height: 0,
+    rotation: 0,
+  });
 
   /* ── Toolbar state ── */
   const [activeTab,        setActiveTab]        = useState<"Home"|"Draw"|"View">("Home");
   const [showTagMenu,      setShowTagMenu]      = useState(false);
+  const [showCourseMenu,   setShowCourseMenu]   = useState(false);
   const [showReminderMenu, setShowReminderMenu] = useState(false);
   const [reminderTitle,    setReminderTitle]    = useState("");
   const [reminderDate,     setReminderDate]     = useState("");
   const [reminderTime,     setReminderTime]     = useState("09:00");
   const [showFontDropdown, setShowFontDropdown] = useState(false);
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
+  const [showTextColorMenu, setShowTextColorMenu] = useState(false);
+  const [showHighlightColorMenu, setShowHighlightColorMenu] = useState(false);
   const [showHeadingDropdown, setShowHeadingDropdown] = useState(false);
   const [headingDropdownPos, setHeadingDropdownPos] = useState({ top: 0, left: 0 });
+  const [textColorMenuPos, setTextColorMenuPos] = useState({ top: 0, left: 0 });
+  const [highlightColorMenuPos, setHighlightColorMenuPos] = useState({ top: 0, left: 0 });
   const [currentHeading,   setCurrentHeading]   = useState("p");
+  const [currentTextColor, setCurrentTextColor] = useState("#0F172A");
+  const [currentHighlightColor, setCurrentHighlightColor] = useState<string | null>("#FEF08A");
   const [isFavorite,       setIsFavorite]       = useState(false);
   const [showMoreMenu,     setShowMoreMenu]     = useState(false);
   const [tagMenuPos,       setTagMenuPos]       = useState({ top: 0, left: 0 });
+  const [courseMenuPos,    setCourseMenuPos]    = useState({ top: 0, left: 0 });
   const [reminderMenuPos,  setReminderMenuPos]  = useState({ top: 0, left: 0 });
   const [moreMenuPos,      setMoreMenuPos]      = useState({ top: 0, left: 0 });
+  const [availableCourses, setAvailableCourses] = useState<PersonalCourse[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+
+  const coursesStorageKey = user ? `luminote-personal-courses-${user.id}` : "luminote-personal-courses-guest";
+  const noteCourseStorageKey = user ? `luminote-note-course-map-${user.id}` : "luminote-note-course-map-guest";
 
   /* ── Format state tracking ── */
   const [fmtBold,      setFmtBold]      = useState(false);
@@ -396,19 +721,460 @@ export function Editor() {
   const [aiInput, setAiInput] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
 
+  const getImageRotation = (img: HTMLImageElement) => {
+    const match = (img.style.transform || "").match(/rotate\((-?\d+(?:\.\d+)?)deg\)/);
+    return match ? Number(match[1]) : 0;
+  };
+
+  const refreshActiveImageBox = useCallback(() => {
+    const img = activeImageRef.current;
+    if (!img) return;
+    const rect = img.getBoundingClientRect();
+    const width = parseFloat(img.style.width) || img.clientWidth || rect.width || 220;
+    const height = img.style.height && img.style.height !== "auto"
+      ? parseFloat(img.style.height)
+      : img.clientHeight || rect.height || 140;
+    const rotation = getImageRotation(img);
+    setActiveImageBox({
+      visible: true,
+      centerX: rect.left + rect.width / 2,
+      centerY: rect.top + rect.height / 2,
+      width,
+      height,
+      rotation,
+    });
+  }, []);
+
+  const clearActiveImage = useCallback(() => {
+    activeImageRef.current = null;
+    setActiveImageBox((prev) => ({ ...prev, visible: false }));
+  }, []);
+
+  const persistEditorDraft = useCallback((nextTitle: string, nextContent: string, nextDrawSnapshot: string | null) => {
+    if (!noteDraftStorageKey) return;
+    writeEditorDraft(noteDraftStorageKey, {
+      title: nextTitle,
+      content: mergeContentWithDrawData(nextContent, nextDrawSnapshot),
+      savedAt: new Date().toISOString(),
+    });
+  }, [noteDraftStorageKey]);
+
+  const flushCurrentEditorDraft = useCallback(() => {
+    const current = editorStateRef.current;
+    persistEditorDraft(current.title, current.content, current.drawSnapshot);
+  }, [persistEditorDraft]);
+
+  useEffect(() => {
+    editorStateRef.current = { title, content, drawSnapshot };
+  }, [title, content, drawSnapshot]);
+
+  useEffect(() => {
+    return () => {
+      flushCurrentEditorDraft();
+    };
+  }, [note?.id, flushCurrentEditorDraft]);
+
+  useEffect(() => {
+    const handlePageHide = () => flushCurrentEditorDraft();
+    const handleBeforeUnload = () => flushCurrentEditorDraft();
+
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      flushCurrentEditorDraft();
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [flushCurrentEditorDraft]);
+
+  const loadAvailableCourses = useCallback(async () => {
+    const normalizeCourses = (input: any[]): PersonalCourse[] => {
+      return input
+        .filter((course: any) => course && typeof course.id === "string" && typeof course.title === "string")
+        .map((course: any) => ({
+          id: course.id,
+          title: course.title,
+          code: course.code,
+          subtitle: course.subtitle,
+        }));
+    };
+
+    const localCourses = (() => {
+      const keys = Array.from(new Set([coursesStorageKey, "luminote-personal-courses-guest"]));
+      const merged: PersonalCourse[] = [];
+
+      for (const key of keys) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) continue;
+          merged.push(...normalizeCourses(parsed));
+        } catch {
+          // Ignore malformed local cache.
+        }
+      }
+
+      return merged;
+    })();
+
+    let remoteCourses: PersonalCourse[] = [];
+    if (user?.id) {
+      const { data, error } = await supabase
+        .from("user_courses")
+        .select("id, code, title, subtitle")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!error && Array.isArray(data)) {
+        remoteCourses = normalizeCourses(data);
+      }
+    }
+
+    const byId = new Map<string, PersonalCourse>();
+    for (const course of localCourses) byId.set(course.id, course);
+    for (const course of remoteCourses) byId.set(course.id, course);
+
+    setAvailableCourses(Array.from(byId.values()));
+  }, [coursesStorageKey, user?.id]);
+
+  useEffect(() => {
+    void loadAvailableCourses();
+  }, [loadAvailableCourses]);
+
+  useEffect(() => {
+    if (!id || !note) {
+      setSelectedCourseId(null);
+      return;
+    }
+
+    if (note.course_id) {
+      setSelectedCourseId(note.course_id);
+      return;
+    }
+
+    try {
+      const raw = localStorage.getItem(noteCourseStorageKey);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const localMapped = parsed && typeof parsed[id] === "string" ? parsed[id] : null;
+      setSelectedCourseId(localMapped);
+    } catch {
+      setSelectedCourseId(null);
+    }
+  }, [id, note?.id, note?.course_id, noteCourseStorageKey]);
+
+  const handleSelectCourse = async (courseId: string | null) => {
+    if (!id) return;
+
+    setSelectedCourseId(courseId);
+
+    if (courseId) {
+      const selected = availableCourses.find((course) => course.id === courseId);
+      toast.success(selected ? `Course selected: ${selected.title}` : "Course selected.");
+    }
+
+    try {
+      const raw = localStorage.getItem(noteCourseStorageKey);
+      const parsed = raw ? JSON.parse(raw) : {};
+      if (courseId) parsed[id] = courseId;
+      else delete parsed[id];
+      localStorage.setItem(noteCourseStorageKey, JSON.stringify(parsed));
+    } catch {
+      // Ignore local cache write failures.
+    }
+
+    if (!user?.id) {
+      setShowCourseMenu(false);
+      return;
+    }
+
+    // Use updateNote from NotesContext to properly sync the course_id
+    try {
+      await updateNote(id, { course_id: courseId });
+    } catch (error) {
+      console.warn("[Editor] Course link database sync failed:", error);
+    }
+
+    setShowCourseMenu(false);
+  };
+
+  const selectImage = useCallback((img: HTMLImageElement | null) => {
+    if (!img) {
+      clearActiveImage();
+      return;
+    }
+
+    img.dataset.luminoteImage = "1";
+    img.draggable = false;
+    img.style.maxWidth = img.style.position === "absolute" ? "none" : "100%";
+    if (!img.style.width) img.style.width = `${Math.min(320, Math.max(120, img.clientWidth || 220))}px`;
+    if (!img.style.height || img.style.height === "auto") img.style.height = "auto";
+    if (!img.style.transformOrigin) img.style.transformOrigin = "center center";
+    if (!img.style.display) img.style.display = "inline-block";
+    img.style.cursor = "move";
+
+    activeImageRef.current = img;
+    refreshActiveImageBox();
+  }, [clearActiveImage, refreshActiveImageBox]);
+
+  const commitEditorDomToState = useCallback(() => {
+    if (!editorRef.current) return;
+    setContent(editorRef.current.innerHTML);
+    isDirty.current = true;
+  }, []);
+
+  const insertImageFromFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      focusEditor();
+      document.execCommand("insertHTML", false,
+        `<img data-luminote-image="1" src="${dataUrl}" alt="${file.name}" style="width:220px;height:auto;border-radius:8px;margin:6px 4px;display:inline-block;cursor:move;transform-origin:center center;" />`
+      );
+      commitEditorDomToState();
+    } catch {
+      toast.error("Could not insert this image.");
+    }
+  }, [commitEditorDomToState, toast]);
+
+  const placeImageForFreeMove = useCallback((img: HTMLImageElement) => {
+    const editor = editorRef.current;
+    const shell = editorCanvasShellRef.current;
+    if (!editor || !shell) return;
+
+    const rect = img.getBoundingClientRect();
+    const editorRect = editor.getBoundingClientRect();
+    const currentLeft = parseFloat(img.style.left);
+    const currentTop = parseFloat(img.style.top);
+
+    if (!Number.isFinite(currentLeft) || !Number.isFinite(currentTop) || img.style.position !== "absolute") {
+      const nextLeft = Math.max(0, rect.left - editorRect.left + shell.scrollLeft);
+      const nextTop = Math.max(0, rect.top - editorRect.top + shell.scrollTop);
+      img.style.position = "absolute";
+      img.style.left = `${nextLeft}px`;
+      img.style.top = `${nextTop}px`;
+      img.style.margin = "0";
+      img.style.maxWidth = "none";
+      img.style.zIndex = "20";
+    }
+  }, []);
+
+  const startImageMove = useCallback((event: React.MouseEvent) => {
+    const img = activeImageRef.current;
+    const editor = editorRef.current;
+    if (!img || !editor) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    placeImageForFreeMove(img);
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startLeft = parseFloat(img.style.left) || 0;
+    const startTop = parseFloat(img.style.top) || 0;
+
+    const onMove = (e: MouseEvent) => {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      // Keep movement unconstrained on the far edge so images can be positioned
+      // anywhere in the note canvas, while still preventing negative coordinates.
+      const nextLeft = Math.max(0, startLeft + dx);
+      const nextTop = Math.max(0, startTop + dy);
+
+      img.style.left = `${nextLeft}px`;
+      img.style.top = `${nextTop}px`;
+      img.style.cursor = "grabbing";
+      isDirty.current = true;
+      refreshActiveImageBox();
+    };
+
+    const onUp = () => {
+      img.style.cursor = "move";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      commitEditorDomToState();
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [commitEditorDomToState, placeImageForFreeMove, refreshActiveImageBox]);
+
+  const startImageResize = useCallback((dir: string, event: React.MouseEvent) => {
+    const img = activeImageRef.current;
+    if (!img) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    placeImageForFreeMove(img);
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startW = parseFloat(img.style.width) || img.clientWidth || 220;
+    const startH = img.style.height && img.style.height !== "auto"
+      ? parseFloat(img.style.height)
+      : img.clientHeight || 140;
+    const startLeft = parseFloat(img.style.left) || 0;
+    const startTop = parseFloat(img.style.top) || 0;
+    const startCenterX = startLeft + startW / 2;
+    const startCenterY = startTop + startH / 2;
+    const rotation = (getImageRotation(img) * Math.PI) / 180;
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+
+    const toLocal = (dx: number, dy: number) => ({
+      x: cos * dx + sin * dy,
+      y: -sin * dx + cos * dy,
+    });
+
+    const axisX = dir.includes("e") ? 1 : dir.includes("w") ? -1 : 0;
+    const axisY = dir.includes("s") ? 1 : dir.includes("n") ? -1 : 0;
+
+    const onMove = (e: MouseEvent) => {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const local = toLocal(dx, dy);
+      const deltaW = axisX !== 0 ? axisX * local.x : 0;
+      const deltaH = axisY !== 0 ? axisY * local.y : 0;
+
+      const nextW = Math.max(64, startW + deltaW);
+      const nextH = Math.max(48, startH + deltaH);
+      const actualDW = nextW - startW;
+      const actualDH = nextH - startH;
+
+      const centerShiftLocalX = axisX !== 0 ? (axisX * actualDW) / 2 : 0;
+      const centerShiftLocalY = axisY !== 0 ? (axisY * actualDH) / 2 : 0;
+      const centerShiftX = cos * centerShiftLocalX - sin * centerShiftLocalY;
+      const centerShiftY = sin * centerShiftLocalX + cos * centerShiftLocalY;
+      const nextCenterX = Math.max(nextW / 2, startCenterX + centerShiftX);
+      const nextCenterY = Math.max(nextH / 2, startCenterY + centerShiftY);
+
+      img.style.position = "absolute";
+      img.style.left = `${nextCenterX - nextW / 2}px`;
+      img.style.top = `${nextCenterY - nextH / 2}px`;
+      img.style.width = `${nextW}px`;
+      img.style.height = `${nextH}px`;
+      img.style.maxWidth = "none";
+      isDirty.current = true;
+      refreshActiveImageBox();
+    };
+
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      commitEditorDomToState();
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [commitEditorDomToState, placeImageForFreeMove, refreshActiveImageBox]);
+
+  const startImageRotate = useCallback((event: React.MouseEvent) => {
+    const img = activeImageRef.current;
+    if (!img) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = img.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const startPointerAngle = Math.atan2(event.clientY - cy, event.clientX - cx);
+    const startRotation = getImageRotation(img);
+
+    const onMove = (e: MouseEvent) => {
+      const currentPointerAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
+      const deltaDegrees = (currentPointerAngle - startPointerAngle) * (180 / Math.PI);
+      const nextRotation = startRotation + deltaDegrees;
+      img.style.transform = `rotate(${nextRotation}deg)`;
+      img.style.transformOrigin = "center center";
+      isDirty.current = true;
+      refreshActiveImageBox();
+    };
+
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      commitEditorDomToState();
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [commitEditorDomToState, refreshActiveImageBox]);
+
+  const saveCanvasSnapshot = useCallback((syncState = true) => {
+    if (!note?.id || !canvasRef.current) return;
+    try {
+      const dataUrl = canvasRef.current.toDataURL("image/png");
+      localStorage.setItem(getDrawStorageKey(note.id), dataUrl);
+      if (syncState) {
+        setDrawSnapshot(dataUrl);
+        isDirty.current = true;
+        persistEditorDraft(title, content, dataUrl);
+      }
+    } catch {
+      // Ignore storage/save issues; drawing remains usable for current session.
+    }
+  }, [content, note?.id, persistEditorDraft, title]);
+
+  const restoreCanvasSnapshot = useCallback(() => {
+    if (!note?.id || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const saved = drawSnapshot || localStorage.getItem(getDrawStorageKey(note.id));
+    if (!saved) return;
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = saved;
+  }, [note?.id, drawSnapshot]);
+
+  const clearCanvasSnapshot = useCallback(() => {
+    if (!canvasRef.current || !note?.id) return;
+    const canvas = canvasRef.current;
+    canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    localStorage.removeItem(getDrawStorageKey(note.id));
+    setDrawSnapshot(null);
+    isDirty.current = true;
+  }, [note?.id]);
+
   /* ── Sync note → editor ── */
   useEffect(() => {
     if (note) {
+      const parsed = extractDrawDataFromContent(note.content || "");
+      const draft = noteDraftStorageKey ? readEditorDraft(noteDraftStorageKey) : null;
+      const noteSnapshot = mergeContentWithDrawData(parsed.editorContent, parsed.drawData);
+      const shouldRestoreDraft = !!draft && draft.content !== noteSnapshot;
+
+      if (shouldRestoreDraft && draft) {
+        const restored = extractDrawDataFromContent(draft.content || "");
+        setTitle(draft.title || note.title);
+        setContent(restored.editorContent);
+        setDrawSnapshot(restored.drawData);
+        isDirty.current = true;
+        return;
+      }
+
+      const storedDrawData = parsed.drawData || localStorage.getItem(getDrawStorageKey(note.id));
       setTitle(note.title);
-      setContent(note.content);
+      setContent(parsed.editorContent);
+      setDrawSnapshot(storedDrawData);
       isDirty.current = false;
     }
-  }, [id, note?.id]);
+  }, [id, note?.id, noteDraftStorageKey]);
 
   useEffect(() => {
     if (editorRef.current && note) {
-      if (editorRef.current.innerHTML !== note.content) {
-        editorRef.current.innerHTML = note.content || "";
+      const parsed = extractDrawDataFromContent(note.content || "");
+      if (editorRef.current.innerHTML !== parsed.editorContent) {
+        editorRef.current.innerHTML = parsed.editorContent || "";
       }
     }
   }, [id, note?.id]);
@@ -417,20 +1183,59 @@ export function Editor() {
   useEffect(() => {
     if (!note || !isDirty.current) return;
     const timeout = setTimeout(() => {
-      updateNote(note.id, { title, content });
-      isDirty.current = false;
+      void (async () => {
+        try {
+          const mergedContent = mergeContentWithDrawData(content, drawSnapshot);
+          await updateNote(note.id, { title, content: mergedContent });
+          isDirty.current = false;
+          if (noteDraftStorageKey) clearEditorDraft(noteDraftStorageKey);
+          
+          // Extract reminders from note content for future events
+          if (title || mergedContent) {
+            await extractRemindersFromNote(note.id, title, mergedContent);
+          }
+        } catch {
+          // Keep the local draft so the note can be recovered after a refresh.
+        }
+      })();
     }, 1500);
     return () => clearTimeout(timeout);
-  }, [title, content, note?.id]);
+  }, [content, drawSnapshot, note?.id, noteDraftStorageKey, title, updateNote, extractRemindersFromNote]);
 
   /* ── Canvas resize ── */
   useEffect(() => {
-    if (canvasRef.current && activeTab === "Draw") {
+    if (canvasRef.current) {
       const canvas = canvasRef.current;
       const parent = canvas.parentElement;
-      if (parent) { canvas.width = parent.scrollWidth; canvas.height = parent.scrollHeight; }
+      if (parent) {
+        canvas.width = parent.scrollWidth;
+        canvas.height = parent.scrollHeight;
+      }
+      restoreCanvasSnapshot();
     }
-  }, [activeTab, content]);
+  }, [activeTab, content, note?.id, drawSnapshot, restoreCanvasSnapshot]);
+
+  useEffect(() => {
+    return () => {
+      saveCanvasSnapshot(false);
+    };
+  }, [saveCanvasSnapshot]);
+
+  useEffect(() => {
+    const onViewportChange = () => refreshActiveImageBox();
+    window.addEventListener("resize", onViewportChange);
+    window.addEventListener("scroll", onViewportChange, true);
+    return () => {
+      window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("scroll", onViewportChange, true);
+    };
+  }, [refreshActiveImageBox]);
+
+  useEffect(() => {
+    if (activeTab === "Draw") {
+      clearActiveImage();
+    }
+  }, [activeTab, clearActiveImage]);
 
   /* ── Format state polling ── */
   const updateFormatState = useCallback(() => {
@@ -499,10 +1304,12 @@ export function Editor() {
   /* ── Editor input ── */
   const handleEditorInput = useCallback(() => {
     if (!editorRef.current) return;
-    setContent(editorRef.current.innerHTML);
+    const nextContent = editorRef.current.innerHTML;
+    setContent(nextContent);
     isDirty.current = true;
+    persistEditorDraft(title, nextContent, drawSnapshot);
     updateFormatState();
-  }, [updateFormatState]);
+  }, [drawSnapshot, persistEditorDraft, title, updateFormatState]);
 
   const focusEditor = () => editorRef.current?.focus();
 
@@ -531,6 +1338,48 @@ export function Editor() {
     handleEditorInput();
   };
 
+  const handleTextColor = (hex: string) => {
+    setCurrentTextColor(hex);
+    setShowTextColorMenu(false);
+    focusEditor();
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand("foreColor", false, hex);
+    handleEditorInput();
+  };
+
+  const getEditorSelection = () => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed || !sel.toString().trim()) return null;
+    const range = sel.getRangeAt(0);
+    if (!editorRef.current || !editorRef.current.contains(range.commonAncestorContainer)) return null;
+    return sel;
+  };
+
+  const handleHighlightColor = (hex: string) => {
+    const sel = getEditorSelection();
+    if (!sel) return;
+
+    setCurrentHighlightColor(hex);
+    setShowHighlightColorMenu(false);
+    focusEditor();
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand("hiliteColor", false, hex);
+    handleEditorInput();
+  };
+
+  const clearHighlightColor = () => {
+    const sel = getEditorSelection();
+    if (!sel) return;
+
+    setCurrentHighlightColor(null);
+    setShowHighlightColorMenu(false);
+    focusEditor();
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand("hiliteColor", false, "transparent");
+    document.execCommand("backColor", false, "transparent");
+    handleEditorInput();
+  };
+
   /* ── Image insert ── */
   const handleInsertImage = () => {
     const input = document.createElement("input");
@@ -539,12 +1388,7 @@ export function Editor() {
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      const url = URL.createObjectURL(file);
-      focusEditor();
-      document.execCommand("insertHTML", false,
-        `<img src="${url}" alt="${file.name}" style="max-width:200px;height:auto;border-radius:8px;margin:6px 4px;display:inline-block;cursor:pointer;resize:both;overflow:auto;" />`
-      );
-      handleEditorInput();
+      insertImageFromFile(file);
     };
     input.click();
   };
@@ -715,6 +1559,7 @@ export function Editor() {
     e.currentTarget.releasePointerCapture(e.pointerId);
     const ctx = canvasRef.current?.getContext("2d");
     if (ctx) { ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; }
+    saveCanvasSnapshot();
   };
 
   const handleCanvasMouseMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -786,7 +1631,7 @@ export function Editor() {
       ];
 
       return (
-        <div className="flex items-center h-auto min-h-[44px] px-3 py-1.5 gap-1.5 flex-wrap bg-[var(--color-background)] border-b border-slate-200/50">
+        <div className="ln-editor-toolbar flex items-center h-auto min-h-[44px] px-3 py-1.5 gap-1.5 flex-wrap bg-[var(--color-background)] border-b border-slate-200/50">
           {tools.map(t => {
             const isActive = drawTool === t.id;
             const iconStroke = (t.id !== "eraser" && isLightColor(t.iconColor)) ? "#374151" : t.iconColor;
@@ -800,7 +1645,7 @@ export function Editor() {
                     setDrawTool(t.id);
                     setOpenDrawPalette(openDrawPalette === t.id ? null : t.id);
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-all ${
+                  className={`ln-editor-tool-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-all ${
                     isActive
                       ? "bg-[var(--color-primary)]/15 border-[var(--color-primary)]/40 text-[var(--color-primary)]"
                       : "border-slate-200/50 hover:bg-[var(--color-surface)] text-[var(--color-text-secondary)]"
@@ -843,7 +1688,7 @@ export function Editor() {
           {/* Clear canvas */}
           <div className="ml-auto">
             <button
-              onClick={() => { const c = canvasRef.current; if (c) c.getContext("2d")?.clearRect(0, 0, c.width, c.height); }}
+              onClick={clearCanvasSnapshot}
               className="px-2.5 py-1 rounded-lg text-[10px] border border-slate-200/50 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all" style={{ fontWeight: 600 }}>
               Clear
             </button>
@@ -872,15 +1717,15 @@ export function Editor() {
                 setShowHeadingDropdown(v => !v);
                 setShowFontDropdown(false); setShowSizeDropdown(false);
               }}
-              className="flex items-center gap-1 bg-[var(--color-surface)] border border-slate-200/50 rounded px-2 py-1 hover:border-[var(--color-primary)] transition-colors"
+              className="ln-editor-dropdown-trigger flex items-center gap-1 bg-[var(--color-surface)] border border-slate-200/50 rounded px-2 py-1 hover:border-[var(--color-primary)] transition-colors"
             >
-              <span className="text-xs w-[72px] truncate text-[var(--color-text-primary)]" style={{ fontWeight: 600 }}>{headingObj.label}</span>
+              <span className="ln-editor-dropdown-label text-xs w-[72px] truncate text-[var(--color-text-primary)]" style={{ fontWeight: 600 }}>{headingObj.label}</span>
               <ChevronDown size={10} />
             </button>
             {showHeadingDropdown && (
               <>
                 <div style={{ position: "fixed", inset: 0, zIndex: 99990 }} onMouseDown={() => setShowHeadingDropdown(false)} />
-                <div style={{
+                <div className="ln-editor-dropdown-panel" style={{
                   position: "fixed", top: headingDropdownPos.top, left: headingDropdownPos.left,
                   zIndex: 99999, background: "white", border: "1px solid #e2e8f0",
                   boxShadow: "0 12px 40px rgba(0,0,0,.18)", borderRadius: 12, padding: "6px 0", width: 200,
@@ -888,7 +1733,7 @@ export function Editor() {
                   {HEADING_OPTIONS.map(h => (
                     <button key={h.value}
                       onMouseDown={e => { e.preventDefault(); applyHeading(h.value); }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-50 transition-colors ${currentHeading === h.value ? "bg-indigo-50" : ""}`}
+                      className={`ln-editor-dropdown-item w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-indigo-50 transition-colors ${currentHeading === h.value ? "bg-indigo-50" : ""}`}
                     >
                       <span className="text-[11px] text-gray-400 w-5" style={{ fontWeight: 700 }}>{h.tag}</span>
                       <span style={{ fontSize: h.size, fontWeight: h.value === "p" ? 400 : 700, color: currentHeading === h.value ? "#6366F1" : "#1e293b" }}>
@@ -912,20 +1757,20 @@ export function Editor() {
                 setShowFontDropdown(v => !v);
                 setShowSizeDropdown(false);
               }}
-              className="flex items-center gap-1 bg-[var(--color-surface)] border border-slate-200/50 rounded px-2 py-1 hover:border-[var(--color-primary)] transition-colors"
+              className="ln-editor-dropdown-trigger flex items-center gap-1 bg-[var(--color-surface)] border border-slate-200/50 rounded px-2 py-1 hover:border-[var(--color-primary)] transition-colors"
               style={{ fontFamily: currentFont.css }}
             >
-              <span className="text-xs w-20 truncate text-[var(--color-text-primary)]">{currentFont.label}</span>
+              <span className="ln-editor-dropdown-label text-xs w-20 truncate text-[var(--color-text-primary)]">{currentFont.label}</span>
               <ChevronDown size={10} />
             </button>
             {showFontDropdown && (
               <>
                 <div style={{ position: "fixed", inset: 0, zIndex: 99990 }} onMouseDown={() => setShowFontDropdown(false)} />
-                <div style={{ position: "fixed", top: fontDropdownPos.top, left: fontDropdownPos.left, zIndex: 99999, background: "white", border: "1px solid #e2e8f0", boxShadow: "0 8px 32px rgba(0,0,0,.15)", borderRadius: 12, padding: "4px 0", width: 192, maxHeight: 240, overflowY: "auto" }}>
+                <div className="ln-editor-dropdown-panel" style={{ position: "fixed", top: fontDropdownPos.top, left: fontDropdownPos.left, zIndex: 99999, background: "white", border: "1px solid #e2e8f0", boxShadow: "0 8px 32px rgba(0,0,0,.15)", borderRadius: 12, padding: "4px 0", width: 192, maxHeight: 240, overflowY: "auto" }}>
                   {FONT_FAMILIES.map(f => (
                     <button key={f.value}
                       onMouseDown={e => { e.preventDefault(); handleFontFamily(f); }}
-                      className={`w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 transition-colors ${currentFont.value === f.value ? "text-[var(--color-primary)] font-bold bg-indigo-50" : "text-gray-800"}`}
+                      className={`ln-editor-dropdown-item w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 transition-colors ${currentFont.value === f.value ? "text-[var(--color-primary)] font-bold bg-indigo-50" : "text-gray-800"}`}
                       style={{ fontFamily: f.css }}>
                       {f.label}
                     </button>
@@ -945,19 +1790,19 @@ export function Editor() {
                 setShowSizeDropdown(v => !v);
                 setShowFontDropdown(false);
               }}
-              className="flex items-center gap-1 bg-[var(--color-surface)] border border-slate-200/50 rounded px-2 py-1 hover:border-[var(--color-primary)] transition-colors"
+              className="ln-editor-dropdown-trigger flex items-center gap-1 bg-[var(--color-surface)] border border-slate-200/50 rounded px-2 py-1 hover:border-[var(--color-primary)] transition-colors"
             >
-              <span className="text-xs text-[var(--color-text-primary)] w-5 text-center">{currentSize}</span>
+              <span className="ln-editor-dropdown-label text-xs text-[var(--color-text-primary)] w-5 text-center">{currentSize}</span>
               <ChevronDown size={10} />
             </button>
             {showSizeDropdown && (
               <>
                 <div style={{ position: "fixed", inset: 0, zIndex: 99990 }} onMouseDown={() => setShowSizeDropdown(false)} />
-                <div style={{ position: "fixed", top: sizeDropdownPos.top, left: sizeDropdownPos.left, zIndex: 99999, background: "white", border: "1px solid #e2e8f0", boxShadow: "0 8px 32px rgba(0,0,0,.15)", borderRadius: 12, padding: "4px 0", width: 80, maxHeight: 200, overflowY: "auto" }}>
+                <div className="ln-editor-dropdown-panel" style={{ position: "fixed", top: sizeDropdownPos.top, left: sizeDropdownPos.left, zIndex: 99999, background: "white", border: "1px solid #e2e8f0", boxShadow: "0 8px 32px rgba(0,0,0,.15)", borderRadius: 12, padding: "4px 0", width: 80, maxHeight: 200, overflowY: "auto" }}>
                   {FONT_SIZES.map(s => (
                     <button key={s}
                       onMouseDown={e => { e.preventDefault(); handleFontSize(s); }}
-                      className={`w-full text-center px-3 py-1.5 text-xs hover:bg-indigo-50 transition-colors ${currentSize === s ? "text-[var(--color-primary)] font-bold bg-indigo-50" : "text-gray-800"}`}>
+                      className={`ln-editor-dropdown-item w-full text-center px-3 py-1.5 text-xs hover:bg-indigo-50 transition-colors ${currentSize === s ? "text-[var(--color-primary)] font-bold bg-indigo-50" : "text-gray-800"}`}>
                       {s}
                     </button>
                   ))}
@@ -973,12 +1818,65 @@ export function Editor() {
           <button onMouseDown={e => { e.preventDefault(); execFormat("italic"); }} title="Italic" className={fmtBtn(fmtItalic)}><Italic size={15} /></button>
           <button onMouseDown={e => { e.preventDefault(); execFormat("underline"); }} title="Underline" className={fmtBtn(fmtUnderline)}><Underline size={15} /></button>
           <button onMouseDown={e => { e.preventDefault(); execFormat("strikeThrough"); }} title="Strikethrough" className={fmtBtn(fmtStrike)}><Strikethrough size={15} /></button>
+          <div className="relative">
+            <button
+              onMouseDown={e => {
+                e.preventDefault();
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                const panelWidth = 220;
+                const centeredLeft = rect.left + rect.width / 2 - panelWidth / 2;
+                const clampedLeft = Math.max(8, Math.min(centeredLeft, window.innerWidth - panelWidth - 8));
+                setTextColorMenuPos({ top: rect.bottom + 6, left: clampedLeft });
+                setShowHighlightColorMenu(false);
+                setShowTextColorMenu(v => !v);
+              }}
+              title="Text color"
+              className="p-1.5 hover:bg-[var(--color-surface)] rounded"
+            >
+              <div className="flex h-[18px] w-[18px] items-center justify-center">
+                <span className="text-[12px] font-bold leading-none" style={{ color: "var(--color-text-primary)" }}>A</span>
+              </div>
+              <div className="mx-auto mt-0.5 h-[2px] w-3 rounded-full" style={{ backgroundColor: currentTextColor }} />
+            </button>
+            {showTextColorMenu && (
+              <TextColorPalette
+                color={currentTextColor}
+                pos={textColorMenuPos}
+                onColorChange={handleTextColor}
+                onClose={() => setShowTextColorMenu(false)}
+              />
+            )}
+          </div>
 
           {/* Highlight */}
-          <button onMouseDown={e => { e.preventDefault(); focusEditor(); document.execCommand("styleWithCSS", false, "true"); document.execCommand("hiliteColor", false, "#FEF08A"); handleEditorInput(); }} title="Highlight"
-            className="p-1.5 hover:bg-[var(--color-surface)] rounded flex items-center gap-0.5">
-            <Highlighter size={15} /><div className="w-1.5 h-1.5 rounded-full bg-yellow-400" />
-          </button>
+          <div className="relative">
+            <button
+              onMouseDown={e => {
+                e.preventDefault();
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                const panelWidth = 220;
+                const centeredLeft = rect.left + rect.width / 2 - panelWidth / 2;
+                const clampedLeft = Math.max(8, Math.min(centeredLeft, window.innerWidth - panelWidth - 8));
+                setHighlightColorMenuPos({ top: rect.bottom + 6, left: clampedLeft });
+                setShowTextColorMenu(false);
+                setShowHighlightColorMenu(v => !v);
+              }}
+              title="Highlight color"
+              className="p-1.5 hover:bg-[var(--color-surface)] rounded flex items-center gap-0.5"
+            >
+              <Highlighter size={15} />
+              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: currentHighlightColor ?? "#D1D5DB" }} />
+            </button>
+            {showHighlightColorMenu && (
+              <HighlightColorPalette
+                color={currentHighlightColor}
+                pos={highlightColorMenuPos}
+                onColorChange={handleHighlightColor}
+                onClear={clearHighlightColor}
+                onClose={() => setShowHighlightColorMenu(false)}
+              />
+            )}
+          </div>
 
           <div className="w-px h-5 bg-slate-200/50 mx-1 shrink-0" />
 
@@ -1013,6 +1911,8 @@ export function Editor() {
               const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
               setTagMenuPos({ top: r.bottom + 4, left: Math.max(8, r.right - 210) });
               setShowTagMenu(!showTagMenu);
+              setShowCourseMenu(false);
+              setShowReminderMenu(false);
             }}
               className="p-1.5 hover:bg-[var(--color-primary)]/20 rounded flex items-center gap-1 bg-[var(--color-primary)]/10 text-[var(--color-primary)] text-[11px] px-2"
               style={{ fontWeight: 600 }}><Tag size={13} /> Tag</button>
@@ -1024,9 +1924,10 @@ export function Editor() {
                     <span className="text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontWeight: 700 }}>Tags</span>
                     <div className="flex flex-wrap gap-1.5">
                       {["RESEARCH","PLANNING","TECH","CREATIVE","INSPIRATION","PERSONAL"].map(tag => {
-                        const sel = note.tags.includes(tag);
+                        const tags = Array.isArray(note.tags) ? note.tags : [];
+                        const sel = tags.includes(tag);
                         return (
-                          <button key={tag} onClick={() => updateNote(note.id, { tags: sel ? note.tags.filter(t => t !== tag) : [...note.tags, tag] })}
+                          <button key={tag} onClick={() => updateNote(note.id, { tags: sel ? tags.filter(t => t !== tag) : [...tags, tag] })}
                             className={`text-[10px] px-2 py-1 rounded tracking-wider transition-colors ${sel ? "bg-[var(--color-primary)] text-white" : "bg-gray-100 text-gray-500 hover:bg-indigo-50"}`}
                             style={{ fontWeight: 700 }}>{tag}</button>
                         );
@@ -1034,10 +1935,67 @@ export function Editor() {
                     </div>
                   </div>
                   <div className="h-px bg-gray-200 my-2" />
-                  <form onSubmit={e => { e.preventDefault(); const input = (e.currentTarget.elements.namedItem("customTag") as HTMLInputElement); const newTag = input.value.trim().toUpperCase(); if (newTag && !note.tags.includes(newTag)) { updateNote(note.id, { tags: [...note.tags, newTag] }); input.value = ""; } }} className="flex gap-2">
+                  <form onSubmit={e => { e.preventDefault(); const input = (e.currentTarget.elements.namedItem("customTag") as HTMLInputElement); const newTag = input.value.trim().toUpperCase(); const tags = Array.isArray(note.tags) ? note.tags : []; if (newTag && !tags.includes(newTag)) { updateNote(note.id, { tags: [...tags, newTag] }); input.value = ""; } }} className="flex gap-2">
                     <input name="customTag" type="text" placeholder="Add tag..." className="flex-1 bg-gray-50 border border-gray-200 rounded p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400" />
                     <button type="submit" className="bg-gray-50 hover:bg-gray-100 rounded px-2 text-xs border border-gray-200" style={{ fontWeight: 600 }}>Add</button>
                   </form>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Course – fixed positioning */}
+          <div className="relative">
+            <button onClick={e => {
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setCourseMenuPos({ top: r.bottom + 4, left: Math.max(8, r.right - 250) });
+              void loadAvailableCourses();
+              setShowCourseMenu(!showCourseMenu);
+              setShowTagMenu(false);
+              setShowReminderMenu(false);
+            }}
+              className="p-1.5 hover:bg-blue-100 rounded flex items-center gap-1 bg-blue-50 text-blue-600 text-[11px] px-2"
+              style={{ fontWeight: 600 }}>
+              <GraduationCap size={13} /> Course
+            </button>
+            {showCourseMenu && (
+              <>
+                <div style={{ position: "fixed", inset: 0, zIndex: 99990 }} onClick={() => setShowCourseMenu(false)} />
+                <div style={{ position: "fixed", top: courseMenuPos.top, left: courseMenuPos.left, zIndex: 99999, background: "white", border: "1px solid #e2e8f0", boxShadow: "0 12px 40px rgba(0,0,0,.18)", borderRadius: 12, padding: 12, width: 250 }}>
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontWeight: 700 }}>Courses</span>
+
+                    {availableCourses.length === 0 ? (
+                      <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                        You have not created any courses yet. Add one on your Personal page to organize your study notes.
+                      </p>
+                    ) : (
+                      <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1">
+                        <button
+                          onClick={() => handleSelectCourse(null)}
+                          className={`w-full text-left rounded-lg px-3 py-2 text-xs border transition-colors ${selectedCourseId === null ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"}`}
+                          style={{ fontWeight: 600 }}
+                        >
+                          No course selected
+                        </button>
+                        {availableCourses.map((course) => {
+                          const isSelected = selectedCourseId === course.id;
+                          return (
+                            <button
+                              key={course.id}
+                              onClick={() => handleSelectCourse(course.id)}
+                              className={`w-full text-left rounded-lg px-3 py-2 text-xs border transition-colors ${isSelected ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"}`}
+                            >
+                              <div className="font-semibold">{course.title}</div>
+                              {(course.code || course.subtitle) && (
+                                <div className="text-[10px] text-slate-500 mt-0.5">{course.code || ""}{course.code && course.subtitle ? " • " : ""}{course.subtitle || ""}</div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </>
             )}
@@ -1049,6 +2007,8 @@ export function Editor() {
               const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
               setReminderMenuPos({ top: r.bottom + 4, left: Math.max(8, r.right - 260) });
               setShowReminderMenu(!showReminderMenu);
+              setShowTagMenu(false);
+              setShowCourseMenu(false);
             }}
               className="p-1.5 hover:bg-orange-100 rounded flex items-center gap-1 bg-orange-50 text-orange-500 text-[11px] px-2" style={{ fontWeight: 600 }}>
               <Bell size={13} /> Reminder
@@ -1079,7 +2039,7 @@ export function Editor() {
     /* ─── VIEW TAB ─── */
     if (activeTab === "View") {
       return (
-        <div className="flex items-center h-10 px-3 gap-4 overflow-x-auto scrollbar-hide text-[var(--color-text-secondary)] bg-[var(--color-background)] border-b border-slate-200/50">
+        <div className="ln-editor-viewbar flex items-center h-10 px-3 gap-4 overflow-x-auto scrollbar-hide text-[var(--color-text-secondary)] bg-[var(--color-background)] border-b border-slate-200/50">
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-[10px] text-slate-400 uppercase tracking-wider" style={{ fontWeight: 700 }}>Color</span>
             <div className="flex gap-1">
@@ -1111,7 +2071,7 @@ export function Editor() {
      RENDER
      ═══════════════════════════════════════════════ */
   return (
-    <div className="h-full flex flex-col bg-[var(--color-surface)] overflow-hidden">
+    <div className="h-full flex flex-col bg-[var(--color-surface)] overflow-hidden" data-editor-shell>
       {/* CSS for draw tool animation + editor styles */}
       <style>{`
         @keyframes dtPop { 0%{transform:scale(.95);opacity:0} 100%{transform:scale(1);opacity:1} }
@@ -1123,25 +2083,111 @@ export function Editor() {
         [data-luminote-editor] ol { list-style:decimal; padding-left:24px; margin:4px 0; }
         [data-luminote-editor] hr { border:none; border-top:1.5px solid #E5E7EB; margin:12px 0; }
         [data-luminote-editor] img {
-          max-width:200px; height:auto; border-radius:8px; margin:6px 4px;
-          display:inline-block; cursor:nwse-resize;
+          max-width:100%; height:auto; border-radius:8px; margin:6px 4px;
+          display:inline-block; cursor:move;
           border:2px solid transparent; transition:border-color .2s;
+          user-select:none;
+          -webkit-user-drag:none;
         }
         [data-luminote-editor] img:hover { border-color:#6366F1; }
         [data-luminote-editor] img::selection { background:rgba(99,102,241,.2); }
         [data-luminote-editor] mark { background:#FEF08A; border-radius:2px; }
         [data-luminote-editor] a { color:#6366F1; text-decoration:underline; }
         [data-luminote-editor]:empty:before { content:attr(data-placeholder); color:#94a3b8; pointer-events:none; }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-tabs {
+          background: #0b0f19;
+          border-bottom-color: #2f3644;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-tab {
+          background: #111827;
+          border-color: #2f3644;
+          color: #9ca3af;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-tab:hover {
+          background: #1f2937;
+          color: #e5e7eb;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-tab.is-active {
+          background: #020617 !important;
+          border-color: #374151 !important;
+          color: #ffffff !important;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-header,
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-toolbar,
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-viewbar {
+          background: #0f172a;
+          border-color: #334155;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-title {
+          color: #e5e7eb !important;
+          caret-color: #f8fafc;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-title::placeholder {
+          color: #94a3b8;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-mode-tabs {
+          background: #0f172a;
+          border-color: #334155;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-mode-tab {
+          color: #cbd5e1;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-tool-btn,
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-dropdown-trigger,
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-dropdown-label,
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-toolbar button {
+          color: #e5e7eb;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-dropdown-panel {
+          background: #111827 !important;
+          border-color: #334155 !important;
+          color: #e5e7eb !important;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-dropdown-item {
+          color: #e5e7eb !important;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-dropdown-item:hover,
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-dropdown-item.bg-indigo-50 {
+          background: #1f2937 !important;
+          color: #ffffff !important;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] [data-luminote-editor] {
+          color: #f8fafc !important;
+          caret-color: #f8fafc;
+          border-top: 1px solid #334155;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] .ln-editor-canvas-shell {
+          border-top: 1px solid #334155;
+        }
+
+        html[data-theme="obsidian"] [data-editor-shell] [data-luminote-editor]:empty:before {
+          color: #94a3b8;
+        }
       `}</style>
 
       {/* ── Chrome Tabs ── */}
-      <div className="flex items-end px-2 pt-1.5 bg-[#E5E7EB] border-b border-gray-300 gap-0.5 overflow-x-auto scrollbar-hide shrink-0">
+      <div className="ln-editor-tabs flex items-end px-2 pt-1.5 bg-[#E5E7EB] border-b border-gray-300 gap-0.5 overflow-x-auto scrollbar-hide shrink-0">
         {openTabs.map(tabId => {
           const tNote = notes.find(n => n.id === tabId);
           const isActive = id === tabId;
           return (
             <div key={tabId} onClick={() => navigate(`/home/editor/${tabId}`)}
-              className={`group flex items-center gap-1.5 max-w-[180px] min-w-[100px] px-2.5 py-1.5 rounded-t-lg cursor-pointer border border-b-0 transition-colors ${isActive ? "bg-white border-gray-300 text-gray-900 z-10" : "bg-[#F3F4F6] border-transparent text-gray-500 hover:bg-white/60"}`}>
+              className={`ln-editor-tab group flex items-center gap-1.5 max-w-[180px] min-w-[100px] px-2.5 py-1.5 rounded-t-lg cursor-pointer border border-b-0 transition-colors ${isActive ? "is-active bg-white border-gray-300 text-gray-900 z-10" : "bg-[#F3F4F6] border-transparent text-gray-500 hover:bg-white/60"}`}>
               <FileText size={12} className={isActive ? "text-[var(--color-primary)]" : "text-gray-400"} />
               <span className="text-[11px] truncate flex-1" style={{ fontWeight: 600 }}>{tNote?.title || "Untitled Note"}</span>
               <button onClick={e => handleCloseTab(e, tabId)}
@@ -1154,18 +2200,18 @@ export function Editor() {
 
       {/* ── Header ── */}
       <div className="bg-[var(--color-surface)] shrink-0 z-40 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-        <header className="flex items-center justify-between px-2 py-1.5">
+        <header className="ln-editor-header flex items-center justify-between px-2 py-1.5">
           <div className="flex items-center gap-1 min-w-0">
             <button onClick={() => navigate("/home")} className="w-7 h-7 flex items-center justify-center rounded text-[var(--color-text-secondary)] hover:bg-[var(--color-background)] transition-colors shrink-0"><ArrowLeft size={16} /></button>
-            <input type="text" value={title} onChange={e => { setTitle(e.target.value); isDirty.current = true; }}
-              className="text-sm text-[var(--color-text-primary)] bg-transparent outline-none w-[140px] focus:w-[200px] transition-all border border-transparent hover:border-slate-200/50 rounded px-1.5 py-0.5" style={{ fontWeight: 600 }} placeholder="Rename Note..." />
+            <input type="text" value={title} onChange={e => { const nextTitle = e.target.value; setTitle(nextTitle); isDirty.current = true; persistEditorDraft(nextTitle, content, drawSnapshot); }}
+              className="ln-editor-title text-sm text-[var(--color-text-primary)] bg-transparent outline-none w-[140px] focus:w-[200px] transition-all border border-transparent hover:border-slate-200/50 rounded px-1.5 py-0.5" style={{ fontWeight: 600 }} placeholder="Rename Note..." />
           </div>
 
           {/* Ribbon Tabs — only Home, Draw, View */}
-          <div className="absolute left-1/2 -translate-x-1/2 flex items-center bg-[var(--color-background)] rounded-full p-0.5 border border-slate-200/50">
+          <div className="ln-editor-mode-tabs absolute left-1/2 -translate-x-1/2 flex items-center bg-[var(--color-background)] rounded-full p-0.5 border border-slate-200/50">
             {(["Home","Draw","View"] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-4 py-1 rounded-full text-xs transition-all ${activeTab === tab ? "bg-[var(--color-primary)] text-white shadow-sm" : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]"}`}
+                className={`ln-editor-mode-tab px-4 py-1 rounded-full text-xs transition-all ${activeTab === tab ? "bg-[var(--color-primary)] text-white shadow-sm" : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]"}`}
                 style={{ fontWeight: 600 }}>{tab}</button>
             ))}
           </div>
@@ -1202,7 +2248,7 @@ export function Editor() {
                       🔗 Copy Link
                     </button>
                     <div className="h-px bg-gray-100 mx-3 my-1" />
-                    <button onClick={() => { if (note) { updateNote(note.id, { title: "", content: "" }); if (editorRef.current) editorRef.current.innerHTML = ""; setTitle(""); setContent(""); } setShowMoreMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-red-50 text-red-500 flex items-center gap-2" style={{ fontWeight: 500 }}>
+                    <button onClick={() => { if (note) { clearCanvasSnapshot(); updateNote(note.id, { title: "", content: "" }); if (editorRef.current) { while (editorRef.current.firstChild) { editorRef.current.removeChild(editorRef.current.firstChild); } } setTitle(""); setContent(""); } setShowMoreMenu(false); }} className="w-full text-left px-4 py-2.5 text-xs hover:bg-red-50 text-red-500 flex items-center gap-2" style={{ fontWeight: 500 }}>
                       🗑️ Clear Note
                     </button>
                   </div>
@@ -1216,7 +2262,7 @@ export function Editor() {
       </div>
 
       {/* ── Editor Canvas ── */}
-      <div className="flex-1 overflow-auto relative">
+      <div ref={editorCanvasShellRef} className="ln-editor-canvas-shell flex-1 overflow-auto relative">
         <div className={`min-h-full ${currentColorObj.class} relative transition-colors duration-300`} style={getPatternStyle()}>
           <div
             ref={editorRef}
@@ -1224,6 +2270,46 @@ export function Editor() {
             contentEditable
             suppressContentEditableWarning
             onInput={handleEditorInput}
+            onMouseDown={(e) => {
+              if (activeTab === "Draw") return;
+              const target = e.target as HTMLElement;
+              if (target instanceof HTMLImageElement) {
+                selectImage(target);
+                startImageMove(e);
+              } else {
+                clearActiveImage();
+              }
+            }}
+            onMouseMove={(e) => {
+              if (activeTab === "Draw") return;
+              const target = e.target as HTMLElement;
+              if (target instanceof HTMLImageElement) {
+                if (activeImageRef.current !== target) {
+                  selectImage(target);
+                } else {
+                  refreshActiveImageBox();
+                }
+              }
+            }}
+            onDragOver={(e) => {
+              if ([...e.dataTransfer.items].some((item) => item.type.startsWith("image/"))) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "copy";
+              }
+            }}
+            onDrop={(e) => {
+              const files = [...e.dataTransfer.files].filter((f) => f.type.startsWith("image/"));
+              if (!files.length) return;
+              e.preventDefault();
+              focusEditor();
+              const rangeFromPoint = document.caretRangeFromPoint?.(e.clientX, e.clientY);
+              if (rangeFromPoint) {
+                const sel = window.getSelection();
+                sel?.removeAllRanges();
+                sel?.addRange(rangeFromPoint);
+              }
+              void insertImageFromFile(files[0]);
+            }}
             onKeyUp={updateFormatState}
             onMouseUp={updateFormatState}
             onKeyDown={() => { isDirty.current = true; }}
@@ -1283,6 +2369,85 @@ export function Editor() {
               <style>{`canvas { cursor: crosshair !important; }`}</style>
             )}
           </div>
+
+          {activeTab !== "Draw" && activeImageBox.visible && activeImageRef.current && (
+            <div
+              style={{
+                position: "fixed",
+                top: activeImageBox.centerY,
+                left: activeImageBox.centerX,
+                width: activeImageBox.width,
+                height: activeImageBox.height,
+                transform: `translate(-50%, -50%) rotate(${activeImageBox.rotation}deg)`,
+                transformOrigin: "center center",
+                zIndex: 60,
+                pointerEvents: "none",
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  border: "1.5px solid rgba(99,102,241,.65)",
+                  borderRadius: 8,
+                }}
+              />
+
+              {[
+                { dir: "n", top: "0%", left: "50%", cursor: "ns-resize" },
+                { dir: "s", top: "100%", left: "50%", cursor: "ns-resize" },
+                { dir: "e", top: "50%", left: "100%", cursor: "ew-resize" },
+                { dir: "w", top: "50%", left: "0%", cursor: "ew-resize" },
+                { dir: "ne", top: "0%", left: "100%", cursor: "nesw-resize" },
+                { dir: "nw", top: "0%", left: "0%", cursor: "nwse-resize" },
+                { dir: "se", top: "100%", left: "100%", cursor: "nwse-resize" },
+                { dir: "sw", top: "100%", left: "0%", cursor: "nesw-resize" },
+              ].map((h) => (
+                <button
+                  key={h.dir}
+                  onMouseDown={(e) => startImageResize(h.dir, e)}
+                  style={{
+                    position: "absolute",
+                    top: h.top,
+                    left: h.left,
+                    transform: "translate(-50%, -50%)",
+                    width: 10,
+                    height: 10,
+                    borderRadius: 999,
+                    border: "1px solid #6366F1",
+                    background: "#fff",
+                    cursor: h.cursor,
+                    pointerEvents: "auto",
+                  }}
+                />
+              ))}
+
+              <button
+                onMouseDown={startImageRotate}
+                title="Rotate image"
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 22px)",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: 28,
+                  height: 28,
+                  borderRadius: 999,
+                  border: "1px solid rgba(148,163,184,.5)",
+                  background: "#fff",
+                  color: "#64748B",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "grab",
+                  boxShadow: "0 8px 18px rgba(0,0,0,.12)",
+                  pointerEvents: "auto",
+                }}
+              >
+                <RotateCw size={14} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

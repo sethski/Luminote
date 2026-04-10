@@ -7,22 +7,25 @@ import { useAuth } from "./AuthContext";
 
 export type { Note, Reminder };
 
-type NotesContextType = {
-  notes:          Note[];
-  notesLoading:   boolean;
-  searchQuery:    string;
-  setSearchQuery: (q: string) => void;
-  addNote:        () => Promise<string>;
-  updateNote:     (id: string, updates: Partial<Note>) => Promise<void>;
-  deleteNote:     (id: string) => Promise<void>;
-  refreshNotes:   () => Promise<void>;
-  reminders:      Reminder[];
-  addReminder:    (r: Pick<Reminder, "title" | "date" | "time">) => Promise<void>;
-  toggleReminder: (id: string) => Promise<void>;
-  removeReminder: (id: string) => Promise<void>;
-  /** @deprecated use notesLoading */
-  loading: boolean;
-};
+  type NotesContextType = {
+    notes:          Note[];
+    notesLoading:   boolean;
+    searchQuery:    string;
+    setSearchQuery: (q: string) => void;
+    addNote:        () => Promise<string>;
+    addNoteForCourse: (courseId: string) => Promise<string>;
+    updateNote:     (id: string, updates: Partial<Note>) => Promise<void>;
+    deleteNote:     (id: string) => Promise<void>;
+    assignNoteToCourse: (noteId: string, courseId: string | null) => Promise<void>;
+    refreshNotes:   () => Promise<void>;
+    reminders:      Reminder[];
+    addReminder:    (r: Pick<Reminder, "title" | "scheduled_at">, noteId?: string) => Promise<void>;
+    toggleReminder: (id: string) => Promise<void>;
+    removeReminder: (id: string) => Promise<void>;
+    extractRemindersFromNote: (noteId: string, noteTitle: string, noteContent: string) => Promise<Reminder[]>;
+    /** @deprecated use notesLoading */
+    loading: boolean;
+  };
 
 const NotesContext = createContext<NotesContextType | null>(null);
 
@@ -36,6 +39,75 @@ export function NotesProvider({ children }: { children: ReactNode }) {
 
   // Cache timestamp to avoid redundant fetches
   const lastFetch = useRef<number>(0);
+  const reminderSchemaRef = useRef<"unknown" | "modern" | "legacy">("unknown");
+
+  const toIsoFromLegacy = (date: string, time?: string): string | null => {
+    if (!date) return null;
+    const withTime = `${date} ${time && time.trim() ? time.trim() : "9:00 AM"}`;
+    const parsed = new Date(withTime);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+    const dateOnly = new Date(date);
+    return Number.isNaN(dateOnly.getTime()) ? null : dateOnly.toISOString();
+  };
+
+  const toLegacyDate = (iso: string): string => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const y = d.getFullYear();
+    const m = `${d.getMonth() + 1}`.padStart(2, "0");
+    const day = `${d.getDate()}`.padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const toLegacyTime = (iso: string): string => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "9:00 AM";
+    let h = d.getHours();
+    const m = `${d.getMinutes()}`.padStart(2, "0");
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12;
+    if (h === 0) h = 12;
+    return `${h}:${m} ${ampm}`;
+  };
+
+  const normalizeReminder = (raw: any): Reminder | null => {
+    const scheduledAt = typeof raw?.scheduled_at === "string"
+      ? raw.scheduled_at
+      : (typeof raw?.date === "string" ? toIsoFromLegacy(raw.date, raw.time) : null);
+
+    if (!scheduledAt) return null;
+
+    const isCompleted = Boolean(raw?.is_completed ?? raw?.completed ?? false);
+
+    return {
+      ...raw,
+      note_id: raw?.note_id ?? null,
+      scheduled_at: scheduledAt,
+      is_completed: isCompleted,
+      date: typeof raw?.date === "string" ? raw.date : toLegacyDate(scheduledAt),
+      time: typeof raw?.time === "string" ? raw.time : toLegacyTime(scheduledAt),
+      completed: isCompleted,
+    } as Reminder;
+  };
+
+  const detectReminderSchema = useCallback(async () => {
+    if (reminderSchemaRef.current !== "unknown") return reminderSchemaRef.current;
+
+    const modernProbe = await supabase.from("reminders").select("id, scheduled_at").limit(1);
+    if (!modernProbe.error) {
+      reminderSchemaRef.current = "modern";
+      return "modern";
+    }
+
+    const legacyProbe = await supabase.from("reminders").select("id, date, time, completed").limit(1);
+    if (!legacyProbe.error) {
+      reminderSchemaRef.current = "legacy";
+      return "legacy";
+    }
+
+    reminderSchemaRef.current = "unknown";
+    return "unknown";
+  }, []);
 
   const isAuthRaceError = (error: any) => {
     const text = `${error?.message ?? ""} ${error?.details ?? ""}`.toLowerCase();
@@ -49,11 +121,12 @@ export function NotesProvider({ children }: { children: ReactNode }) {
   };
 
   /* ── Fetch notes (with 30s cache) ─────────────── */
-  const fetchNotes = useCallback(async (force = false) => {
+  const fetchNotes = useCallback(async (force = false, silent = false) => {
     if (!user) { setNotes([]); setNotesLoading(false); return; }
     if (!force && Date.now() - lastFetch.current < 30_000) return;
     lastFetch.current = Date.now();
-    setNotesLoading(true);
+    const shouldShowLoading = !silent && notes.length === 0;
+    if (shouldShowLoading) setNotesLoading(true);
     const query = () => supabase
       .from("notes")
       .select("*")
@@ -74,14 +147,19 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     }
 
     if (!error && data) {
-      setNotes(data as Note[]);
+      // Normalize tags - ensure they're always arrays
+      const normalizedNotes = (data as any[]).map(note => ({
+        ...note,
+        tags: Array.isArray(note.tags) ? note.tags : (typeof note.tags === 'string' ? [note.tags] : [])
+      })) as Note[];
+      setNotes(normalizedNotes);
     } else if (error) {
       console.error("[NotesDebug] Failed to fetch notes:", error);
       lastFetch.current = 0;
     }
 
-    setNotesLoading(false);
-  }, [user?.id]);
+    if (shouldShowLoading) setNotesLoading(false);
+  }, [notes.length, user?.id]);
 
   /* ── Fetch reminders ──────────────────────────── */
   const fetchReminders = useCallback(async () => {
@@ -89,8 +167,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     const query = () => supabase
       .from("reminders")
       .select("*")
-      .eq("user_id", user.id)
-      .order("date", { ascending: true });
+      .eq("user_id", user.id);
 
     let { data, error } = await query();
 
@@ -105,7 +182,11 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     }
 
     if (!error && data) {
-      setReminders(data as Reminder[]);
+      const normalized = (data as any[])
+        .map(normalizeReminder)
+        .filter((r): r is Reminder => Boolean(r))
+        .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+      setReminders(normalized);
     } else if (error) {
       console.error("[NotesDebug] Failed to fetch reminders:", error);
     }
@@ -123,7 +204,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       if (!s?.user || s.user.id !== user.id) return;
       if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        void fetchNotes(true);
+        void fetchNotes(true, true);
         void fetchReminders();
       }
     });
@@ -144,6 +225,8 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       }, payload => {
         if (payload.eventType === "INSERT") {
           const incoming = payload.new as Note;
+          // Normalize tags
+          incoming.tags = Array.isArray(incoming.tags) ? incoming.tags : [];
           setNotes(prev => {
             // Deduplicate — optimistic insert already added it
             if (prev.find(n => n.id === incoming.id)) return prev;
@@ -151,6 +234,8 @@ export function NotesProvider({ children }: { children: ReactNode }) {
           });
         } else if (payload.eventType === "UPDATE") {
           const updated = payload.new as Note;
+          // Normalize tags
+          updated.tags = Array.isArray(updated.tags) ? updated.tags : [];
           setNotes(prev => prev.map(n => n.id === updated.id ? updated : n));
         } else if (payload.eventType === "DELETE") {
           setNotes(prev => prev.filter(n => n.id !== (payload.old as any).id));
@@ -163,36 +248,153 @@ export function NotesProvider({ children }: { children: ReactNode }) {
   /* ── Notes CRUD ───────────────────────────────── */
   const addNote = async (): Promise<string> => {
     if (!user) throw new Error("Not authenticated");
+    console.log("[NotesContext] addNote: Creating new note for user:", user.id);
     const { data, error } = await supabase
       .from("notes")
       .insert({
         user_id:     user.id,
         title:       "",
         content:     "",
+        course_id:   null,
         tags:        [],
         paper_style: settings?.paper_default ?? "plain",
         color_style: "white",
       })
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      console.error("[NotesContext] addNote error:", error);
+      throw error;
+    }
     const inserted = data as Note;
+    console.log("[NotesContext] addNote: Created note with ID:", inserted.id);
+    setNotes(prev => [inserted, ...prev]);
+    return inserted.id;
+  };
+
+  const addNoteForCourse = async (courseId: string): Promise<string> => {
+    if (!user) throw new Error("Not authenticated");
+    console.log("[NotesContext] addNoteForCourse: Creating new note for user:", user.id, "course:", courseId);
+    
+    // Validate that the course exists and belongs to the user
+    console.log("[NotesContext] addNoteForCourse: Validating course exists...");
+    const { data: courseData, error: courseError } = await supabase
+      .from("user_courses")
+      .select("id")
+      .eq("id", courseId)
+      .eq("user_id", user.id)
+      .single();
+    
+    // If not found in Supabase, check localStorage (for locally-saved courses)
+    if ((courseError || !courseData) && user?.id) {
+      const coursesStorageKey = `luminote-personal-courses-${user.id}`;
+      const localCourses = (() => {
+        try {
+          const raw = localStorage.getItem(coursesStorageKey);
+          return raw ? JSON.parse(raw) : [];
+        } catch {
+          return [];
+        }
+      })();
+      
+      const localCourse = localCourses.find((c: any) => c.id === courseId);
+      if (localCourse) {
+        console.log("[NotesContext] addNoteForCourse: Course found in localStorage, syncing to Supabase...");
+        // Try to sync the course to Supabase
+        const { error: insertError } = await supabase
+          .from("user_courses")
+          .insert({
+            id: localCourse.id,
+            user_id: user.id,
+            code: localCourse.code || "",
+            title: localCourse.title || "",
+            subtitle: localCourse.subtitle || null,
+            schedule_days: localCourse.days || [],
+            schedule_time: localCourse.time || null,
+            notes: localCourse.notes || "",
+          });
+        
+        if (insertError) {
+          console.warn("[NotesContext] addNoteForCourse: Could not sync course to Supabase, proceeding without course link:", insertError);
+          // Continue without course_id
+          return addNoteForCourse_Internal(user.id, null);
+        }
+        console.log("[NotesContext] addNoteForCourse: Course synced to Supabase");
+      } else {
+        console.error("[NotesContext] addNoteForCourse: Course not found in Supabase or localStorage:", courseError);
+        throw new Error(`Course not found or not authorized. Please refresh and select a valid course.`);
+      }
+    } else {
+      console.log("[NotesContext] addNoteForCourse: Course validated in Supabase");
+    }
+    
+    return addNoteForCourse_Internal(user.id, courseId);
+  };
+
+  const addNoteForCourse_Internal = async (userId: string, courseId: string | null): Promise<string> => {
+    const { data, error } = await supabase
+      .from("notes")
+      .insert({
+        user_id:     userId,
+        title:       "",
+        content:     "",
+        course_id:   courseId,
+        tags:        [],
+        paper_style: settings?.paper_default ?? "plain",
+        color_style: "white",
+      })
+      .select()
+      .single();
+    if (error) {
+      console.error("[NotesContext] addNoteForCourse_Internal error:", error);
+      throw error;
+    }
+    const inserted = data as Note;
+    console.log("[NotesContext] addNoteForCourse_Internal: Created note with ID:", inserted.id);
     setNotes(prev => [inserted, ...prev]);
     return inserted.id;
   };
 
   const updateNote = async (id: string, updates: Partial<Note>) => {
+    console.log("[NotesContext] updateNote: Updating note", id, "with:", updates);
+    
+    // Normalize tags to ensure they're always arrays
+    const normalizedUpdates = {
+      ...updates,
+      ...(updates.tags !== undefined && {
+        tags: Array.isArray(updates.tags) ? updates.tags : (typeof updates.tags === 'string' ? [updates.tags] : [])
+      })
+    };
+    
+    console.log("[NotesContext] updateNote: Normalized updates:", normalizedUpdates);
+
     setNotes(prev =>
-      prev.map(n => n.id === id ? { ...n, ...updates, updated_at: new Date().toISOString() } : n)
+      prev.map(n => n.id === id ? { 
+        ...n, 
+        ...normalizedUpdates, 
+        updated_at: new Date().toISOString() 
+      } : n)
     );
-    const { error } = await supabase
-      .from("notes")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .eq("user_id", user?.id ?? "");
-    if (error) {
-      await fetchNotes(true);
-      throw error;
+    
+    try {
+      console.log("[NotesContext] updateNote: Sending to Supabase...");
+      const { error } = await supabase
+        .from("notes")
+        .update({ ...normalizedUpdates, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("user_id", user?.id ?? "");
+      
+      if (error) {
+        console.error("[NotesContext] updateNote error:", error);
+        console.error("[NotesContext] updateNote error code:", error.code);
+        console.error("[NotesContext] updateNote error message:", error.message);
+        await fetchNotes(true);
+        throw error;
+      }
+      console.log("[NotesContext] updateNote: Successfully updated note", id);
+    } catch (err) {
+      console.error("[NotesContext] updateNote failed:", err);
+      throw err;
     }
   };
 
@@ -209,26 +411,68 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const assignNoteToCourse = async (noteId: string, courseId: string | null) => {
+    setNotes(prev =>
+      prev.map(n => n.id === noteId ? { ...n, course_id: courseId, updated_at: new Date().toISOString() } : n)
+    );
+    const { error } = await supabase
+      .from("notes")
+      .update({ course_id: courseId, updated_at: new Date().toISOString() })
+      .eq("id", noteId)
+      .eq("user_id", user?.id ?? "");
+    if (error) {
+      await fetchNotes(true);
+      throw error;
+    }
+  };
+
   /* ── Reminders CRUD ───────────────────────────── */
-  const addReminder = async (r: Pick<Reminder, "title" | "date" | "time">) => {
+  const addReminder = async (r: Pick<Reminder, "title" | "scheduled_at">, noteId?: string) => {
     if (!user) return;
+    const schema = await detectReminderSchema();
+    const payload = schema === "legacy"
+      ? {
+          user_id: user.id,
+          note_id: noteId || null,
+          title: r.title,
+          date: toLegacyDate(r.scheduled_at),
+          time: toLegacyTime(r.scheduled_at),
+          completed: false,
+        }
+      : {
+          user_id: user.id,
+          note_id: noteId || null,
+          title: r.title,
+          scheduled_at: r.scheduled_at,
+          is_completed: false,
+        };
+
     const { data, error } = await supabase
       .from("reminders")
-      .insert({ user_id: user.id, ...r })
+      .insert(payload)
       .select()
       .single();
-    if (!error && data) setReminders(prev => [...prev, data as Reminder]);
+    if (!error && data) {
+      const normalized = normalizeReminder(data as any);
+      if (normalized) setReminders(prev => [...prev, normalized]);
+    } else if (error) {
+      console.error("[NotesDebug] addReminder failed:", error);
+    }
   };
 
   const toggleReminder = async (id: string) => {
     const reminder = reminders.find(r => r.id === id);
     if (!reminder) return;
-    const newCompleted = !reminder.completed;
-    setReminders(prev => prev.map(r => r.id === id ? { ...r, completed: newCompleted } : r));
+    const newCompleted = !reminder.is_completed;
+    setReminders(prev => prev.map(r => r.id === id ? { ...r, is_completed: newCompleted, completed: newCompleted } : r));
+    const schema = await detectReminderSchema();
+    const payload = schema === "legacy"
+      ? { completed: newCompleted }
+      : { is_completed: newCompleted };
     const { error } = await supabase
-      .from("reminders").update({ completed: newCompleted }).eq("id", id);
+      .from("reminders").update(payload).eq("id", id);
     if (error) {
-      setReminders(prev => prev.map(r => r.id === id ? { ...r, completed: !newCompleted } : r));
+      setReminders(prev => prev.map(r => r.id === id ? { ...r, is_completed: !newCompleted, completed: !newCompleted } : r));
     }
   };
 
@@ -237,12 +481,99 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     await supabase.from("reminders").delete().eq("id", id);
   };
 
+  /* ── Extract reminders from note with AI ─────── */
+  const extractRemindersFromNote = async (
+    noteId: string,
+    noteTitle: string,
+    noteContent: string
+  ): Promise<Reminder[]> => {
+    if (!user) return [];
+    
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) return [];
+
+      const response = await fetch("/api/extract-reminders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          note_id: noteId,
+          note_title: noteTitle,
+          note_content: noteContent,
+          user_id: user.id,
+        }),
+      });
+
+      if (response.ok) {
+        const { reminders: extracted } = await response.json();
+
+        // Refetch reminders from database
+        await fetchReminders();
+
+        return extracted || [];
+      }
+
+      // Fallback path for local Vite dev (no /api runtime) or transient API failures.
+      const { extractRemindersFromText } = await import("./qwen");
+      const extracted = await extractRemindersFromText(noteTitle, noteContent);
+
+      const schema = await detectReminderSchema();
+
+      const deleteQuery = supabase
+        .from("reminders")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("note_id", noteId);
+      const { error: deleteError } = schema === "legacy"
+        ? await deleteQuery.eq("completed", false)
+        : await deleteQuery.eq("is_completed", false);
+      if (deleteError) {
+        console.error("[NotesDebug] reminder cleanup failed:", deleteError);
+      }
+
+      if (extracted.length > 0) {
+        const rows = schema === "legacy"
+          ? extracted.map((r) => ({
+              user_id: user.id,
+              note_id: noteId,
+              title: r.title,
+              date: toLegacyDate(r.scheduled_at),
+              time: toLegacyTime(r.scheduled_at),
+              completed: false,
+            }))
+          : extracted.map((r) => ({
+              user_id: user.id,
+              note_id: noteId,
+              title: r.title,
+              scheduled_at: r.scheduled_at,
+              is_completed: false,
+            }));
+
+        const { error: insertError } = await supabase.from("reminders").insert(rows);
+        if (insertError) {
+          console.error("[NotesDebug] reminder insert failed:", insertError);
+          return [];
+        }
+      }
+
+      await fetchReminders();
+      return extracted;
+    } catch (error) {
+      console.error("Error extracting reminders:", error);
+      return [];
+    }
+  };
+
   return (
     <NotesContext.Provider value={{
       notes, notesLoading, loading: notesLoading,
       searchQuery, setSearchQuery,
-      addNote, updateNote, deleteNote, refreshNotes: () => fetchNotes(true),
-      reminders, addReminder, toggleReminder, removeReminder,
+      addNote, addNoteForCourse, updateNote, deleteNote, assignNoteToCourse, refreshNotes: () => fetchNotes(true),
+      reminders, addReminder, toggleReminder, removeReminder, extractRemindersFromNote,
     }}>
       {children}
     </NotesContext.Provider>

@@ -15,9 +15,10 @@ import {
 } from "lucide-react";
 import { useNotes } from "./NotesContext";
 import { useAuth } from "./AuthContext";
+import logoUrl from "./assets/logo.svg";
 
 function LuminoteLogo({ size = 16 }: { size?: number }) {
-  return <img src="/src/assets/logo.svg" alt="Luminote" width={size} height={size} className="object-contain" />;
+  return <img src={logoUrl} alt="Luminote" width={size} height={size} className="object-contain" />;
 }
 
 function NavItem({
@@ -35,7 +36,7 @@ function NavItem({
   return (
     <NavLink
       to={to}
-      className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
+      className={`flex min-h-11 items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 ${
         active
           ? "bg-indigo-500/10 text-indigo-500 font-semibold"
           : "text-[#6B7280] dark:text-slate-400 hover:text-indigo-500"
@@ -62,7 +63,7 @@ function MobileNavItem({
   const active = exact ? location.pathname === to : location.pathname.startsWith(to);
 
   return (
-    <NavLink to={to} className="flex flex-col items-center justify-center w-full transition-colors" style={{ color: active ? "#6366F1" : "#9CA3AF" }}>
+    <NavLink to={to} className="flex min-h-11 w-full flex-col items-center justify-center py-1 transition-colors" style={{ color: active ? "#6366F1" : "#9CA3AF" }}>
       <Icon size={22} strokeWidth={active ? 2.5 : 2} />
       <span style={{ fontSize: 9, marginTop: 3, fontWeight: 600, letterSpacing: ".03em" }}>{label}</span>
     </NavLink>
@@ -109,10 +110,10 @@ function RootInner() {
     : user?.email?.[0]?.toUpperCase() ?? "U";
 
   return (
-    <div className="flex h-screen overflow-hidden transition-colors duration-300" style={{ background: "var(--color-background, #F8FAFC)", color: "var(--color-text-primary, #0E1117)" }}>
+    <div className="flex h-[100dvh] min-h-0 overflow-hidden transition-colors duration-300" style={{ background: "var(--color-background, #F8FAFC)", color: "var(--color-text-primary, #0E1117)" }}>
       {!hideNavigation && (
         <aside
-          className="hidden md:flex flex-col w-[240px] border-r z-20 transition-colors duration-300"
+          className="z-20 hidden w-[232px] flex-col border-r transition-colors duration-300 lg:w-[248px] xl:w-[264px] 2xl:w-[288px] md:flex"
           style={{ background: "var(--color-surface, #FFFFFF)", borderColor: "rgba(148,163,184,.25)", boxShadow: "4px 0 24px rgba(0,0,0,.02)" }}
         >
           <div className="flex items-center gap-3 px-6 py-6 mb-2">
@@ -172,7 +173,7 @@ function RootInner() {
       )}
 
       <main
-        className={`flex-1 flex flex-col relative h-full overflow-hidden transition-colors duration-300 ${!hideNavigation ? "pb-[72px] md:pb-0" : ""}`}
+        className={`relative flex h-full min-h-0 flex-1 flex-col overflow-hidden transition-colors duration-300 ${!hideNavigation ? "pb-[84px] md:pb-0" : ""}`}
         style={{ background: "var(--color-background, #F8FAFC)" }}
       >
         <div className="flex-1 overflow-auto">
@@ -182,7 +183,7 @@ function RootInner() {
 
       {!hideNavigation && (
         <div
-          className="md:hidden fixed bottom-0 left-0 right-0 h-[72px] flex items-center justify-around px-2 z-50"
+          className="fixed bottom-0 left-0 right-0 z-50 flex h-[80px] items-center justify-around px-2 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] md:hidden"
           style={{
             background: "color-mix(in srgb, var(--color-surface, #FFFFFF) 95%, transparent)",
             backdropFilter: "blur(12px)",
@@ -198,7 +199,7 @@ function RootInner() {
               type="button"
               onClick={handleAddNote}
               disabled={noteCreating}
-              className="w-14 h-14 rounded-full flex items-center justify-center text-white transition-transform active:scale-90"
+              className="flex h-14 w-14 items-center justify-center rounded-full text-white transition-transform active:scale-90"
               style={{ background: "#0E1117", boxShadow: "0 8px 24px rgba(14,17,23,.25)" }}
               aria-label="Create new note"
             >

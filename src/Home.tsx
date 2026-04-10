@@ -5,16 +5,17 @@
  * 1. Calendar < / > buttons: added stopPropagation + real month navigation
  * 2. Calendar now renders a full month grid (not just 7 days)
  * 3. "View all" reminder button now navigates to /all-notes (filtered)
- * 4. New Note modal: AI-powered with auto-tag suggestions, templates,
+ * 4. New Note modal: AI-powered with auto-tag suggestions,
  *    smart title suggestion, and loading/success states
  */
 import React, { useMemo, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router";
+import { createPortal } from "react-dom";
 import {
   Search, Plus, Image as ImageIcon, Mic, Calendar as CalendarIcon,
   Check, Clock, FileText, Type, X, Sparkles, Tag, ChevronLeft,
-  ChevronRight, ArrowRight, Loader2, CheckCircle2, Lightbulb,
-  AlignLeft, List, Hash, Zap,
+  ChevronRight, ArrowRight, Loader2, CheckCircle2,
+  Hash, Zap, GraduationCap,
 } from "lucide-react";
 import {
   format, isSameDay, addMonths, subMonths,
@@ -22,6 +23,16 @@ import {
   startOfWeek, endOfWeek, isToday as dateFnsIsToday,
 } from "date-fns";
 import { useNotes, Note } from "./NotesContext";
+import { useAuth } from "./AuthContext";
+import { getCleanPreview } from "./utils";
+import { supabase } from "./supabaseClient";
+
+type PersonalCourse = {
+  id: string;
+  code?: string;
+  title: string;
+  subtitle?: string;
+};
 
 /* ─── CSS injected once ───────────────────────── */
 const HOME_CSS = `
@@ -99,23 +110,6 @@ html[data-theme="ash"] .hm-ai-chip{background:linear-gradient(135deg,#1e293b,#0f
 html[data-theme="obsidian"] .hm-ai-chip:hover,
 html[data-theme="ash"] .hm-ai-chip:hover{background:linear-gradient(135deg,#334155,#1e293b)}
 
-/* Template btn */
-.hm-tmpl{
-  flex:1;border:1.5px solid var(--border);border-radius:14px;
-  padding:12px;cursor:pointer;text-align:left;
-  background:var(--bg-main);transition:all .2s;
-  color:var(--text-primary);
-  font-family:'DM Sans',sans-serif;
-}
-.hm-tmpl:hover{border-color:var(--accent);background:var(--bg-card);transform:translateY(-1px)}
-.hm-tmpl.selected{border-color:var(--accent);background:var(--bg-card)}
-
-html[data-theme="obsidian"] .hm-tmpl,
-html[data-theme="ash"] .hm-tmpl {
-  background: var(--bg-main);
-  border-color: var(--border);
-}
-
 /* Modal footer actions */
 .hm-footer-secondary {
   color: var(--text-secondary);
@@ -155,15 +149,15 @@ html[data-theme="ash"] .hm-tmpl {
   filter: brightness(0.96);
   box-shadow: 0 6px 14px rgba(79, 126, 255, 0.25);
 }
-`;
 
-/* ─── Template definitions ────────────────────── */
-const TEMPLATES = [
-  { id: "blank",   icon: <AlignLeft size={16} />,  label: "Blank",    starter: "" },
-  { id: "bullet",  icon: <List size={16} />,       label: "Bullet",   starter: "- \n- \n- \n" },
-  { id: "meeting", icon: <FileText size={16} />,    label: "Meeting",  starter: "## Agenda\n\n- \n\n## Notes\n\n## Action Items\n\n- [ ] \n" },
-  { id: "study",   icon: <Lightbulb size={16} />,   label: "Study",    starter: "## Topic\n\n## Key Concepts\n\n## Questions\n\n## Summary\n" },
-];
+/* Responsive tuning for small touch devices and ultra-wide desktops. */
+@media (max-width: 480px) {
+  .hm-overlay { padding: 12px; }
+  .hm-modal-pop { border-radius: 18px; }
+  .hm-footer-secondary,
+  .hm-footer-primary { min-height: 44px; }
+}
+`;
 
 /* ─── AI-suggested tags by keyword ────────────── */
 const TAG_SUGGESTIONS: Record<string, string[]> = {
@@ -195,56 +189,133 @@ type ModalState = "idle" | "loading" | "success";
 
 function NewNoteModal({ onClose }: { onClose: () => void }) {
   const navigate  = useNavigate();
-  const { addNote, updateNote } = useNotes();
+  const { addNote, addNoteForCourse, updateNote } = useNotes();
+  const { user } = useAuth();
 
   const [title,      setTitle]      = useState("");
-  const [selectedTmpl, setTmpl]     = useState("blank");
   const [selectedTags, setTags]     = useState<string[]>([]);
-  const [aiState,    setAiState]    = useState<ModalState>("idle");
-  const [aiTags,     setAiTags]     = useState<string[]>([]);
-  const [titleHint,  setTitleHint]  = useState("");
+  const [tagInput, setTagInput]     = useState("");
+  const [showCourseMenu, setShowCourseMenu] = useState(false);
+  const [availableCourses, setAvailableCourses] = useState<PersonalCourse[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [courseMenuPos, setCourseMenuPos] = useState({ top: 0, left: 0, width: 250 });
   const titleRef = useRef<HTMLInputElement>(null);
+  const courseButtonRef = useRef<HTMLButtonElement>(null);
 
-  /* Simulate AI tag + title suggestion */
-  const runAiSuggest = useCallback(async () => {
-    if (!title.trim()) return;
-    setAiState("loading");
-    await new Promise(r => setTimeout(r, 900));
+  const coursesStorageKey = user ? `luminote-personal-courses-${user.id}` : "luminote-personal-courses-guest";
 
-    const lower = title.toLowerCase();
-    let suggested: string[] = [];
-    for (const [kw, tags] of Object.entries(TAG_SUGGESTIONS)) {
-      if (lower.includes(kw)) suggested = [...new Set([...suggested, ...tags])];
+  const loadAvailableCourses = useCallback(async () => {
+    console.log("[DEBUG] loadAvailableCourses called, user:", user?.id);
+    
+    const normalizeCourses = (input: any[]): PersonalCourse[] => {
+      return input
+        .filter((course: any) => course && typeof course.id === "string" && typeof course.title === "string")
+        .map((course: any) => ({
+          id: course.id,
+          title: course.title,
+          code: course.code,
+          subtitle: course.subtitle,
+        }));
+    };
+
+    // Load from localStorage as fallback
+    const localCourses = (() => {
+      const keys = Array.from(new Set([coursesStorageKey, "luminote-personal-courses-guest"]));
+      const merged: PersonalCourse[] = [];
+
+      for (const key of keys) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) continue;
+          merged.push(...normalizeCourses(parsed));
+        } catch {
+          // Ignore malformed local cache
+        }
+      }
+
+      console.log("[DEBUG] Local courses from storage:", merged);
+      return merged;
+    })();
+
+    // Fetch from Supabase
+    let remoteCourses: PersonalCourse[] = [];
+    if (user?.id) {
+      console.log("[DEBUG] Fetching from Supabase for user:", user.id);
+      const { data, error } = await supabase
+        .from("user_courses")
+        .select("id, code, title, subtitle")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      console.log("[DEBUG] Supabase response:", { data, error });
+
+      if (!error && Array.isArray(data)) {
+        remoteCourses = normalizeCourses(data);
+        console.log("[DEBUG] Remote courses normalized:", remoteCourses);
+      } else if (error) {
+        console.error("[DEBUG] Supabase error:", error);
+      }
     }
-    if (!suggested.length) suggested = ["PERSONAL"];
 
-    // Simple title hint
-    const hints = [
-      `${title.trim()} — Key Points`,
-      `Notes on ${title.trim()}`,
-      `${title.trim()} Summary`,
-    ];
-    setTitleHint(hints[Math.floor(Math.random() * hints.length)]);
-    setAiTags(suggested);
-    setTags(prev => [...new Set([...prev, ...suggested])]);
-    setAiState("success");
-    setTimeout(() => setAiState("idle"), 2000);
-  }, [title]);
+    // Use Supabase courses, fall back to localStorage if empty
+    const finalCourses = remoteCourses.length > 0 ? remoteCourses : localCourses;
+    console.log("[DEBUG] Using courses:", finalCourses);
+    setAvailableCourses(finalCourses);
+  }, [coursesStorageKey, user?.id]);
 
-  const toggleTag = (tag: string) => {
-    setTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  const handleSelectCourse = (courseId: string | null) => {
+    setSelectedCourseId(courseId);
+    setShowCourseMenu(false);
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && tagInput.trim()) {
+      e.preventDefault();
+      const newTag = tagInput.trim().toUpperCase();
+      if (!selectedTags.includes(newTag)) {
+        setTags(prev => [...prev, newTag]);
+      }
+      setTagInput("");
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags(prev => prev.filter(t => t !== tagToRemove));
   };
 
   const handleCreate = async () => {
-    const tmpl = TEMPLATES.find(t => t.id === selectedTmpl)!;
-    const id = await addNote();
-    updateNote(id, {
-      title: title.trim() || "Untitled Note",
-      content: tmpl.starter,
-      tags: selectedTags,
-    });
-    onClose();
-    navigate(`/home/editor/${id}`);
+    try {
+      console.log("[Home] Creating note with:", { title, selectedTags, selectedCourseId });
+      
+      const id = selectedCourseId 
+        ? await addNoteForCourse(selectedCourseId)
+        : await addNote();
+      
+      console.log("[Home] Note created with ID:", id);
+      
+      if (!id) {
+        console.error("[Home] Failed to create note - no ID returned");
+        alert("Failed to create note - no ID returned");
+        return;
+      }
+
+      // Update note with title and tags (course_id is already set if selected)
+      console.log("[Home] Updating note with title and tags");
+      await updateNote(id, {
+        title: title.trim() || "Untitled Note",
+        tags: selectedTags,
+      });
+      
+      console.log("[Home] Note updated successfully, closing modal and navigating");
+      onClose();
+      navigate(`/home/editor/${id}`);
+    } catch (error: any) {
+      console.error("[Home] Error in handleCreate:", error);
+      const errorMessage = error?.message || "Failed to create note. Please try again.";
+      alert(errorMessage);
+    }
   };
 
   /* Close on backdrop click */
@@ -254,6 +325,16 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
 
   /* Focus title on mount */
   React.useEffect(() => { titleRef.current?.focus(); }, []);
+
+  /* Log availableCourses changes */
+  React.useEffect(() => {
+    console.log("[DEBUG] availableCourses state updated:", availableCourses);
+  }, [availableCourses]);
+
+  /* Log showCourseMenu changes */
+  React.useEffect(() => {
+    console.log("[DEBUG] showCourseMenu state updated:", showCourseMenu);
+  }, [showCourseMenu]);
 
   /* Close on Escape */
   React.useEffect(() => {
@@ -271,12 +352,7 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-[#4059FF] flex items-center justify-center">
-              <Plus size={16} color="white" />
-            </div>
-            <span className="hm-serif text-lg" style={{ color: 'var(--text-primary)' }}>New Note</span>
-          </div>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Create Note</span>
           <button
             type="button"
             onClick={onClose}
@@ -295,108 +371,103 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
             <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-primary)' }}>
               Title
             </label>
-            <div className="relative">
-              <input
-                ref={titleRef}
-                type="text"
-                value={title}
-                onChange={e => { setTitle(e.target.value); setAiTags([]); setTitleHint(""); }}
-                placeholder="What's on your mind?"
-                className="w-full px-4 py-3 rounded-[14px] border border-[#E5E7EB] bg-[#FAFAFA] text-[#0E1117] placeholder:text-slate-500 outline-none focus:border-[#4059FF] focus:bg-white focus:ring-4 focus:ring-[#4059FF]/10 transition-all text-sm"
-                style={{ fontFamily: "'DM Sans', sans-serif" }}
-              />
-            </div>
-            {/* Title hint from AI */}
-            {titleHint && (
-              <button
-                type="button"
-                onClick={() => setTitle(titleHint)}
-                className="mt-1.5 text-xs text-[#4059FF] hover:underline flex items-center gap-1"
-              >
-                <Sparkles size={11} /> Try: "{titleHint}"
-              </button>
-            )}
+            <input
+              ref={titleRef}
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="What's on your mind?"
+              className="w-full px-4 py-3 rounded-[14px] border border-[#E5E7EB] bg-[#FAFAFA] text-[#0E1117] placeholder:text-slate-500 outline-none focus:border-[#4059FF] focus:bg-white focus:ring-4 focus:ring-[#4059FF]/10 transition-all text-sm"
+              style={{ fontFamily: "'DM Sans', sans-serif" }}
+            />
           </div>
 
-          {/* AI Suggest button */}
-          <div className="flex items-center gap-3">
+        </div>
+
+        {/* Course Selection - Outside scrollable area */}
+        <div className="px-6 py-4 border-t" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-card)' }}>
+          <div className="relative w-full">
             <button
+              ref={courseButtonRef}
               type="button"
-              className="hm-ai-chip"
-              onClick={runAiSuggest}
-              disabled={aiState === "loading" || !title.trim()}
-              aria-label="Get AI tag suggestions"
+              onClick={() => {
+                void loadAvailableCourses();
+                setShowCourseMenu(!showCourseMenu);
+              }}
+              className="w-full flex items-center justify-between gap-2 rounded-[14px] border border-[#E5E7EB] px-4 py-2.5 text-sm font-semibold transition-colors"
+              style={{
+                backgroundColor: selectedCourseId ? '#F0F7FF' : '#FAFAFA',
+                color: selectedCourseId ? '#2563EB' : '#6B7280',
+                borderColor: selectedCourseId ? '#BFDBFE' : '#E5E7EB',
+              }}
             >
-              {aiState === "loading" ? (
-                <Loader2 size={13} className="hm-spinner" />
-              ) : aiState === "success" ? (
-                <CheckCircle2 size={13} color="#16A34A" />
-              ) : (
-                <Sparkles size={13} />
-              )}
-              {aiState === "loading" ? "Analyzing…" : aiState === "success" ? "Tags suggested!" : "AI Suggest Tags"}
+              <div className="flex items-center gap-2">
+                <GraduationCap size={14} />
+                <span className="truncate max-w-[200px] text-left">
+                  {selectedCourseId 
+                    ? availableCourses.find(c => c.id === selectedCourseId)?.title || 'Course Selected' 
+                    : 'Assign to Course'}
+                </span>
+              </div>
+              <ChevronRight size={14} className="shrink-0" style={{ transform: showCourseMenu ? 'rotate(90deg)' : '', transition: 'transform 0.2s' }} />
             </button>
-            {aiTags.length > 0 && (
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                Suggested: {aiTags.join(", ")}
-              </span>
+
+            {/* Dropdown rendered inline (pushes content down) */}
+            {showCourseMenu && (
+              <div 
+                className="mt-3 hm-scroll"
+                style={{ 
+                  background: "var(--bg-card, white)", 
+                  border: "1px solid var(--border, #e2e8f0)", 
+                  boxShadow: "0 12px 40px rgba(0,0,0,.08)", 
+                  borderRadius: 12, 
+                  padding: 12, 
+                  width: "100%",
+                  maxHeight: "220px",
+                  overflowY: "auto",
+                  animation: "fadeIn 0.2s ease-out forwards"
+                }}
+              >
+                <style>
+                  {`@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }`}
+                </style>
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider" style={{ fontWeight: 700 }}>Courses</span>
+                  {availableCourses.length === 0 ? (
+                    <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
+                      No courses created yet. Add one on your Personal page.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectCourse(null)}
+                        className={`w-full text-left rounded-lg px-3 py-2.5 text-xs border transition-colors ${selectedCourseId === null ? "bg-blue-50 border-blue-200 text-blue-700" : "bg-transparent border-transparent text-slate-500 hover:bg-slate-50 hover:border-slate-200"}`}
+                        style={{ fontWeight: 600 }}
+                      >
+                        No course selected
+                      </button>
+                      {availableCourses.map((course) => {
+                        const isSelected = selectedCourseId === course.id;
+                        return (
+                          <button
+                            key={course.id}
+                            type="button"
+                            onClick={() => handleSelectCourse(course.id)}
+                            className={`w-full text-left flex items-center justify-between rounded-lg px-3 py-2.5 text-xs border transition-all duration-200 ${isSelected ? "bg-blue-50 border-blue-200 text-blue-800 shadow-sm" : "bg-transparent border-transparent text-slate-700 hover:bg-slate-50 hover:border-slate-200"}`}
+                          >
+                            <div className="min-w-0 pr-2">
+                              <div className="font-semibold line-clamp-2">{course.code ? `${course.code}: ` : ''}{course.title}</div>
+                            </div>
+                            {isSelected && <Check size={14} className="text-blue-600 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-primary)' }}>
-              Tags <span className="font-normal normal-case">(select all that apply)</span>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {ALL_TAGS.map(tag => {
-                const colors  = TAG_COLORS[tag];
-                const active  = selectedTags.includes(tag);
-                const isAiSug = aiTags.includes(tag);
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleTag(tag)}
-                    className="hm-tag-chip"
-                    style={{
-                      background: active ? colors.activeBg : colors.bg,
-                      color:      colors.text,
-                      borderColor: active ? colors.text : "transparent",
-                    }}
-                    aria-pressed={active}
-                  >
-                    <Hash size={10} />
-                    {tag}
-                    {isAiSug && !active && <Sparkles size={9} />}
-                    {active && <Check size={10} />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Template */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-primary)' }}>
-              Template
-            </label>
-            <div className="flex gap-2">
-              {TEMPLATES.map(t => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTmpl(t.id)}
-                  className={`hm-tmpl ${selectedTmpl === t.id ? "selected" : ""}`}
-                  aria-pressed={selectedTmpl === t.id}
-                >
-                  <div className="flex items-center gap-1.5 mb-1 text-[#4059FF]">
-                    {t.icon}
-                  </div>
-                  <div className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t.label}</div>
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 
@@ -415,7 +486,7 @@ function NewNoteModal({ onClose }: { onClose: () => void }) {
             className="hm-footer-primary"
             style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
-            <Zap size={14} /> Open Editor
+            Create Note
           </button>
         </div>
       </div>
@@ -459,9 +530,9 @@ export function Home() {
 
   /* ── Note meta ────────────────────────────────── */
   const getNoteMeta = (note: Note) => {
-    const plain   = note.content.replace(/[#*`_~\[\]()!]/g, "").trim();
-    const words   = plain ? plain.split(/\s+/).length : 0;
-    const preview = plain.split(/[.!?]+/).filter(Boolean).slice(0, 2).join(". ").trim();
+    const plain   = getCleanPreview(note.content, 300);
+    const words   = plain && plain !== "Empty note" && plain !== "Drawing" ? plain.split(/\s+/).length : 0;
+    const preview = plain === "Empty note" || plain === "Drawing" ? "" : plain.split(/[.!?]+/).filter(Boolean).slice(0, 2).join(". ").trim();
     return { words, preview };
   };
 
@@ -531,7 +602,7 @@ export function Home() {
         <NewNoteModal onClose={() => setShowNewNoteModal(false)} />
       )}
 
-      <div className="flex-1 p-4 md:p-8 max-w-[1200px] mx-auto w-full space-y-8">
+      <div className="mx-auto flex-1 w-full max-w-[1200px] space-y-8 p-4 sm:p-6 lg:p-8 min-[1440px]:max-w-[1520px] min-[1440px]:p-10">
 
         {/* ── Greeting + mobile search ─────────── */}
         <div className="hm-a1 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -563,7 +634,7 @@ export function Home() {
         </div>
 
         {/* ── Quick actions ────────────────────── */}
-        <div className="hm-a2 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="hm-a2 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {/* NEW NOTE — opens modal */}
           <button
             type="button"
@@ -741,7 +812,7 @@ export function Home() {
                           {r.title}
                         </p>
                         <p className="text-[10px] transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>
-                          {format(new Date(r.date), "MMM d")} · {r.time}
+                          {format(new Date(r.date || r.scheduled_at), "MMM d")} · {(r.time || format(new Date(r.scheduled_at), "h:mm a"))}
                         </p>
                       </div>
                       <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${r.completed ? "bg-emerald-500 border-emerald-500" : ""}`} style={{ borderColor: r.completed ? 'emerald-500' : 'var(--border)' }}>
@@ -764,7 +835,7 @@ export function Home() {
           </div>
 
           {/* Right — Recent Notes */}
-          <div className="lg:col-span-8">
+          <div className="lg:col-span-8 flex flex-col min-h-0">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>Recent Notes</h2>
               <button
@@ -777,34 +848,36 @@ export function Home() {
               </button>
             </div>
 
-            {filteredNotes.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-24 md:pb-4">
-                {filteredNotes.slice(0, 4).map(note => (
-                  <NoteCard key={note.id} note={note} />
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center rounded-[20px] border border-dashed transition-colors duration-300" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-main)' }}>
-                  <FileText size={22} style={{ color: 'var(--text-secondary)' }} />
+            <div className="lg:max-h-[calc(100vh-360px)] lg:overflow-y-auto lg:pr-2 hm-scroll">
+              {filteredNotes.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4 pb-4 sm:grid-cols-2 min-[1440px]:grid-cols-3">
+                  {filteredNotes.map(note => (
+                    <NoteCard key={note.id} note={note} />
+                  ))}
                 </div>
-                <p className="font-semibold mb-1 transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>
-                  {searchQuery ? "No notes found" : "Your library is empty"}
-                </p>
-                <p className="text-xs max-w-[200px] mb-4 transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>
-                  {searchQuery ? "Try different search terms." : "Create your first note to get started."}
-                </p>
-                {!searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setShowNewNoteModal(true)}
-                    className="flex items-center gap-1.5 bg-[#0E1117] dark:bg-slate-700 text-white dark:text-slate-100 text-xs font-semibold px-4 py-2 rounded-xl hover:bg-[#1e2330] dark:hover:bg-slate-600 transition-colors duration-300"
-                  >
-                    <Plus size={13} /> New Note
-                  </button>
-                )}
-              </div>
-            )}
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-center rounded-[20px] border border-dashed transition-colors duration-300" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-colors duration-300" style={{ backgroundColor: 'var(--bg-main)' }}>
+                    <FileText size={22} style={{ color: 'var(--text-secondary)' }} />
+                  </div>
+                  <p className="font-semibold mb-1 transition-colors duration-300" style={{ color: 'var(--text-primary)' }}>
+                    {searchQuery ? "No notes found" : "Your library is empty"}
+                  </p>
+                  <p className="text-xs max-w-[200px] mb-4 transition-colors duration-300" style={{ color: 'var(--text-secondary)' }}>
+                    {searchQuery ? "Try different search terms." : "Create your first note to get started."}
+                  </p>
+                  {!searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setShowNewNoteModal(true)}
+                      className="flex items-center gap-1.5 bg-[#0E1117] dark:bg-slate-700 text-white dark:text-slate-100 text-xs font-semibold px-4 py-2 rounded-xl hover:bg-[#1e2330] dark:hover:bg-slate-600 transition-colors duration-300"
+                    >
+                      <Plus size={13} /> New Note
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

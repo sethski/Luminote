@@ -8,13 +8,13 @@
  *   supabase secrets set OPENROUTER_API_KEY=your_key_here
  *
  * This keeps the Qwen API key server-side and out of the browser bundle.
- * Call from client: supabase.functions.invoke('qwen-proxy', { body: { messages, model, max_tokens } })
+ * Call from client: supabase.functions.invoke('qwen-proxy', { body: { messages, max_tokens } })
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_QWEN_MODEL = "qwen/qwen3.6-plus-preview:free";
+const DEFAULT_QWEN_MODEL = "openai/gpt-oss-120b:free";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
@@ -28,7 +28,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { messages, model = DEFAULT_QWEN_MODEL, max_tokens = 512, temperature = 0.4 } = await req.json();
+    const { messages, max_tokens = 512, temperature = 0.4 } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "messages array required" }), {
@@ -53,7 +53,7 @@ serve(async (req: Request) => {
         "HTTP-Referer": req.headers.get("origin") ?? "https://luminote.local",
         "X-Title": "Luminote",
       },
-      body: JSON.stringify({ model, max_tokens, temperature, messages }),
+      body: JSON.stringify({ model: DEFAULT_QWEN_MODEL, max_tokens, temperature, messages }),
     });
 
     if (!qwenRes.ok) {

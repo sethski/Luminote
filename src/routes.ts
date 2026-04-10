@@ -11,10 +11,12 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import React from "react";
 import { ProtectedRoute } from "./ProtectedRoute";
+import { useAuth } from "./AuthContext";
 
 // Public pages
 import { Landing } from "./Landing";
 import { Auth    } from "./Auth";
+import { AuthCallback } from "./AuthCallback";
 
 // Protected screens
 import { Root          } from "./Root";
@@ -23,7 +25,7 @@ import { AllNotes      } from "./AllNotes";
 import { Editor        } from "./Editor";
 import { Search        } from "./Search";
 import { Settings      } from "./Settings";
-import { CalendarScreen } from "./Calendar";
+import { CalendarScreen } from "./calendar";
 import { UploadImage   } from "./UploadImage";
 import { VoiceMemo     } from "./VoiceMemo";
 import { Hangout       } from "./Hangout";
@@ -38,14 +40,22 @@ import { ServerPage    } from "./ServerPage";
 const P = (C: React.ComponentType) =>
   React.createElement(ProtectedRoute, null, React.createElement(C));
 
+function RootRedirect() {
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+  return React.createElement(Navigate, { to: user ? "/home" : "/landing", replace: true });
+}
+
 export const router = createBrowserRouter([
   /* ── Public ──────────────────────────────── */
   { path: "/landing", Component: Landing },
   { path: "/login",   Component: Auth    },
+  { path: "/auth/callback", Component: AuthCallback },
 
   /* ── Catch-all redirect ───────────────────── */
     /* ── Catch-all redirect ───────────────────── */
-    { path: "/",        element: React.createElement(Navigate, { to: "/home", replace: true }) },
+    { path: "/",        element: React.createElement(RootRedirect) },
 
   /* ── Protected layout ─────────────────────── */
   {

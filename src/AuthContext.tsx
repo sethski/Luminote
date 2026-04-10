@@ -18,10 +18,11 @@ type AuthContextType = {
   settings:         UserSettings | null;
   loading:          boolean;
   bootError:        string | null;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (returnTo?: string) => Promise<void>;
   signInWithEmail:  (email: string, password: string) => Promise<void>;
   signUpWithEmail:  (email: string, password: string, name: string) => Promise<void>;
   signOut:          () => Promise<void>;
+  updateProfile:    (updates: Partial<Profile>) => Promise<void>;
   updateSettings:   (updates: Partial<UserSettings>) => Promise<void>;
   refreshProfile:   () => Promise<void>;
   resetAuthCache:   () => void;
@@ -32,6 +33,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const PINNED_USER_ID_KEY = "luminote-pinned-user-id";
 const LOGIN_INTENT_KEY = "luminote-login-intent";
+export const OAUTH_RETURN_TO_KEY = "luminote-oauth-return-to";
 
 const DEFAULT_THEME_SETTINGS = {
   theme: "light" as const,
@@ -39,6 +41,7 @@ const DEFAULT_THEME_SETTINGS = {
   font_size: 16,
   paper_default: "paper-plain",
   notifications_enabled: true,
+  daily_study_goal_hours: 12,
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -50,6 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [bootError, setBootError] = useState<string | null>(null);
   const activeUserIdRef = useRef<string | null>(null);
   const allowUserSwitchRef = useRef(false);
+
+  // Keep all auth redirects on the active app origin so localhost port mismatches do not break OAuth.
+  const getAuthRedirectUrl = useCallback(() => `${window.location.origin}/auth/callback`, []);
 
   const stripAuthParamsFromUrl = useCallback(() => {
     try {
@@ -161,6 +167,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(LOGIN_INTENT_KEY);
   }, []);
 
+  const setOAuthReturnTo = useCallback((returnTo: string) => {
+    localStorage.setItem(OAUTH_RETURN_TO_KEY, returnTo);
+  }, []);
+
+  const clearOAuthReturnTo = useCallback(() => {
+    localStorage.removeItem(OAUTH_RETURN_TO_KEY);
+  }, []);
+
   /* ── Fetch profile + settings ───────────────────── */
   const fetchUserData = useCallback(async (userId: string) => {
     console.log(`[AuthDebug] Fetching user data for: ${userId}`);
@@ -183,10 +197,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (prof) {
-        console.log(`[AuthDebug] Profile loaded: ${prof.display_name} (${prof.email})`);
+        console.log(`[AuthDebug] Profile loaded:`, {
+          displayName: prof.display_name,
+          email: prof.email,
+          bio: prof.bio,
+          schoolName: prof.school_name,
+          socials: prof.socials,
+        });
         setProfile(prof as Profile);
       } else {
-        console.warn("[AuthDebug] No profile found for user.");
+        console.warn("[AuthDebug] No profile found for user - will be created on first save.");
         setProfile(null);
       }
 
@@ -227,51 +247,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (s) {
           const pinnedUserId = getPinnedUserId();
           const loginIntent = getLoginIntent();
-          const isUnexpectedPinnedUser = !!pinnedUserId && pinnedUserId !== s.user.id;
-          const isUntrustedRestoredSession = !pinnedUserId && !loginIntent;
-
-          if (isUnexpectedPinnedUser) {
-            console.warn(
-              `[AuthDebug] Bootstrap session user (${s.user.id}) did not match pinned user (${pinnedUserId}). Clearing local session.`
-            );
-            activeUserIdRef.current = null;
-            clearAuthStorage();
-            try {
-              await supabase.auth.signOut({ scope: "local" });
-            } catch (err) {
-              console.error("[AuthDebug] local signOut after pinned mismatch failed:", err);
-            }
-            setSession(null);
-            setUser(null);
-            setProfile(null);
-            setSettings(null);
-            setBootError("Detected an unexpected saved account. Please sign in to your main account again.");
-            return;
-          }
-
-          if (isUntrustedRestoredSession) {
-            console.warn(
-              `[AuthDebug] Ignoring untrusted restored session for user (${s.user.id}) without login intent.`
-            );
-            activeUserIdRef.current = null;
-            clearAuthStorage();
-            try {
-              await supabase.auth.signOut({ scope: "local" });
-            } catch (err) {
-              console.error("[AuthDebug] local signOut after untrusted bootstrap session failed:", err);
-            }
-            setSession(null);
-            setUser(null);
-            setProfile(null);
-            setSettings(null);
-            setBootError("Please sign in to your main account.");
-            return;
-          }
 
           console.log(`[AuthDebug] Session found in bootstrap: ${s.user.email} (${s.user.id})`);
           activeUserIdRef.current = s.user.id;
-          if (!pinnedUserId) setPinnedUserId(s.user.id);
+          if (!pinnedUserId || allowUserSwitchRef.current) setPinnedUserId(s.user.id);
           clearLoginIntent();
+          clearOAuthReturnTo();
           setSession(s);
           setUser(s.user);
           void fetchUserData(s.user.id);
@@ -312,17 +293,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const currentUserId = activeUserIdRef.current;
         const incomingUserId = s?.user?.id ?? null;
-        const unexpectedSwitch =
-          !!currentUserId &&
-          !!incomingUserId &&
-          currentUserId !== incomingUserId &&
-          !allowUserSwitchRef.current;
-
-        if (unexpectedSwitch) {
-          console.warn(
-            `[AuthDebug] Ignoring unexpected account switch from ${currentUserId} to ${incomingUserId}.`
-          );
-          return;
+        if (!!currentUserId && !!incomingUserId && currentUserId !== incomingUserId) {
+          console.log(`[AuthDebug] Account switch detected from ${currentUserId} to ${incomingUserId}`);
         }
 
         const pinnedUserId = getPinnedUserId();
@@ -331,48 +303,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           !incomingUserId &&
           loginIntent === "google" &&
           hasAuthParamsInUrl();
-        const pinnedMismatch = !!pinnedUserId && !!incomingUserId && pinnedUserId !== incomingUserId;
-        const untrustedIncomingSession = !pinnedUserId && !!incomingUserId && !loginIntent && !allowUserSwitchRef.current;
-
-        if (pinnedMismatch && !allowUserSwitchRef.current) {
-          console.warn(
-            `[AuthDebug] Incoming auth user (${incomingUserId}) did not match pinned user (${pinnedUserId}). Clearing local session.`
-          );
-          activeUserIdRef.current = null;
-          clearAuthStorage();
-          try {
-            await supabase.auth.signOut({ scope: "local" });
-          } catch (err) {
-            console.error("[AuthDebug] local signOut after auth event pinned mismatch failed:", err);
-          }
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-          setSettings(null);
-          setBootError("Detected an unexpected saved account. Please sign in to your main account again.");
-          setLoading(false);
-          return;
-        }
-
-        if (untrustedIncomingSession) {
-          console.warn(
-            `[AuthDebug] Ignoring untrusted incoming session for user (${incomingUserId}) without login intent.`
-          );
-          activeUserIdRef.current = null;
-          clearAuthStorage();
-          try {
-            await supabase.auth.signOut({ scope: "local" });
-          } catch (err) {
-            console.error("[AuthDebug] local signOut after untrusted incoming session failed:", err);
-          }
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-          setSettings(null);
-          setBootError("Please sign in to your main account.");
-          setLoading(false);
-          return;
-        }
         
         // Update user state immediately
         activeUserIdRef.current = incomingUserId;
@@ -384,11 +314,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setPinnedUserId(incomingUserId);
           }
           clearLoginIntent();
+          clearOAuthReturnTo();
           setBootError(null);
         } else {
           if (!waitingForOAuthExchange) {
             clearPinnedUserId();
             clearLoginIntent();
+            clearOAuthReturnTo();
           }
         }
 
@@ -449,12 +381,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [settings?.theme, settings?.font_size]);
 
   /* ── Auth actions ───────────────────────────────── */
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (returnTo = "/home") => {
     console.log("[AuthDebug] Initiating Google Sign-In...");
 
     // Ensure no stale local session can override the account selected in OAuth.
     activeUserIdRef.current = null;
     clearPinnedUserId();
+    setOAuthReturnTo(returnTo);
     setLoginIntent("google");
     clearAuthStorage();
     try {
@@ -467,7 +400,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: getAuthRedirectUrl(),
         queryParams: {
           access_type: "offline",
           prompt: "select_account",
@@ -477,6 +410,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       allowUserSwitchRef.current = false;
       clearLoginIntent();
+      clearOAuthReturnTo();
       throw error;
     }
   };
@@ -487,6 +421,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear local auth artifacts so email sign-in always starts clean.
     activeUserIdRef.current = null;
     clearPinnedUserId();
+    clearOAuthReturnTo();
     setLoginIntent("email");
     clearAuthStorage();
     try {
@@ -504,6 +439,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         activeUserIdRef.current = data.session.user.id;
         setPinnedUserId(data.session.user.id);
         clearLoginIntent();
+        setLoading(false);
         setSession(data.session);
         setUser(data.session.user);
         void fetchUserData(data.session.user.id);
@@ -511,18 +447,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       allowUserSwitchRef.current = false;
       clearLoginIntent();
+      clearOAuthReturnTo();
       throw error;
     }
   };
 
   const signUpWithEmail = async (email: string, password: string, name: string) => {
+    clearOAuthReturnTo();
     setLoginIntent("signup");
     allowUserSwitchRef.current = true;
     try {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: name } },
+        options: {
+          data: { full_name: name },
+          emailRedirectTo: getAuthRedirectUrl(),
+        },
       });
       if (error) throw error;
     } finally {
@@ -538,6 +479,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     activeUserIdRef.current = null;
     clearPinnedUserId();
     clearLoginIntent();
+    clearOAuthReturnTo();
     setUser(null);
     setSession(null);
     setProfile(null);
@@ -583,6 +525,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateProfile = async (updates: Partial<Profile>) => {
+    if (!user) {
+      console.error("[AuthDebug] updateProfile called but no user");
+      return;
+    }
+
+    const previousProfile = profile;
+    const optimisticProfile = {
+      ...(profile ?? {}),
+      ...updates,
+    } as Profile;
+
+    setProfile(optimisticProfile);
+    console.log("[AuthDebug] Attempting profile update with optimistic update:", { 
+      userId: user.id,
+      updatesKeys: Object.keys(updates),
+      updates 
+    });
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .upsert({
+        id: user.id,
+        ...updates,
+      }, {
+        onConflict: 'id',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("[AuthDebug] Profile update FAILED:", {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        status: error.status,
+      });
+      if (previousProfile) {
+        setProfile(previousProfile);
+      } else {
+        setProfile(null);
+      }
+      throw error;
+    }
+
+    console.log("[AuthDebug] Profile update SUCCEEDED. Response data:", data);
+    console.log("[AuthDebug] Now refreshing profile data from DB...");
+    await fetchUserData(user.id);
+  };
+
   const refreshProfile = async () => {
     if (user) await fetchUserData(user.id);
   };
@@ -591,6 +584,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     activeUserIdRef.current = null;
     clearPinnedUserId();
     clearLoginIntent();
+    clearOAuthReturnTo();
     setUser(null);
     setSession(null);
     setProfile(null);
@@ -615,7 +609,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user, session, profile, settings, loading,
       bootError,
       signInWithGoogle, signInWithEmail, signUpWithEmail,
-      signOut, updateSettings, refreshProfile, resetAuthCache,
+      signOut, updateProfile, updateSettings, refreshProfile, resetAuthCache,
       deleteAccount,
     }}>
       {children}

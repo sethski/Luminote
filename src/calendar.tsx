@@ -3,10 +3,11 @@ import { ArrowLeft, FileText, ChevronLeft, ChevronRight, Clock } from "lucide-re
 import { useNavigate } from "react-router";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
-  isSameDay, isToday, addMonths, subMonths,
+  isSameDay, isToday, addMonths, subMonths, parseISO,
   startOfWeek, endOfWeek,
 } from "date-fns";
 import { useNotes } from "./NotesContext";
+import { getCleanPreview } from "./utils";
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@400;500;600;700&display=swap');
@@ -39,6 +40,20 @@ const CSS = `
 .cal-reminder-pill.selected { background:rgba(255,255,255,.15); color:rgba(255,255,200,.9); }
 .cal-item-btn { transition:all .2s; }
 .cal-item-btn:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(0,0,0,.08); }
+.cal-layout {
+  display:flex;
+  flex:1;
+  min-height:0;
+  gap:16px;
+  padding:12px;
+}
+.cal-col-left { flex:1.55; min-width:0; }
+.cal-col-right { flex:0.95; min-width:0; }
+@media (max-width: 860px) {
+  .cal-layout { flex-direction:column; }
+  .cal-col-left, .cal-col-right { flex:initial; }
+  .cal-col-right { height:min(55vh, 520px) !important; }
+}
 `;
 
 export function CalendarScreen() {
@@ -58,18 +73,18 @@ export function CalendarScreen() {
     notes.filter(n => isSameDay(new Date(n.updated_at), d));
 
   const remindersOnDay = (d: Date) =>
-    reminders.filter(r => isSameDay(new Date(r.date), d));
+    reminders.filter(r => isSameDay(parseISO(r.scheduled_at), d));
 
   const selectedNotes     = selectedDate ? notesOnDay(selectedDate)     : [];
   const selectedReminders = selectedDate ? remindersOnDay(selectedDate) : [];
 
   return (
-    <div className="cal-root" style={{ minHeight:"100vh", background:"#FAFAF8" }}>
+    <div className="cal-root" style={{ height:"100vh", background:"#FAFAF8", display:"flex", flexDirection:"column", overflow:"hidden" }}>
       <style>{CSS}</style>
 
       {/* Header */}
       <div style={{ background:"white", borderBottom:"1px solid #EBEBEB", position:"sticky", top:0, zIndex:10 }}>
-        <div style={{ maxWidth:1000, margin:"0 auto", padding:"16px 20px", display:"flex", alignItems:"center", gap:12 }}>
+        <div style={{ padding:"16px", display:"flex", alignItems:"center", gap:12 }}>
           <button type="button" onClick={() => navigate(-1)}
             style={{ width:36, height:36, borderRadius:10, border:"1px solid #E5E7EB", background:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#6B7280" }}>
             <ArrowLeft size={16} />
@@ -81,10 +96,10 @@ export function CalendarScreen() {
         </div>
       </div>
 
-      <div style={{ maxWidth:1000, margin:"0 auto", padding:"24px 20px", display:"grid", gridTemplateColumns:"1.3fr 1fr", gap:20 }}>
+      <div className="cal-layout">
 
         {/* ── Calendar Grid ─────────────────────── */}
-        <div className="cal-a1" style={{ background:"white", borderRadius:20, border:"1px solid #EBEBEB", padding:20 }}>
+        <div className="cal-a1 cal-col-left" style={{ background:"white", borderRadius:20, border:"1px solid #EBEBEB", padding:20 }}>
           {/* Month nav */}
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
             <h2 className="cal-serif" style={{ fontSize:"1.2rem", color:"#0E1117", margin:0 }}>
@@ -128,8 +143,8 @@ export function CalendarScreen() {
                   className="cal-day"
                   onClick={() => setSelectedDate(day)}
                   style={{
-                    padding:          "5px 3px 4px",
-                    minHeight:        60,
+                    padding:          "7px 4px 6px",
+                    minHeight:        76,
                     textAlign:        "center",
                     position:         "relative",
                     background:       isSelected ? "#0E1117" : isTodayDay ? "#EFF3FF" : "transparent",
@@ -144,7 +159,7 @@ export function CalendarScreen() {
                 >
                   {/* Day number */}
                   <span style={{
-                    fontSize:   12,
+                    fontSize:   14,
                     fontWeight: isSelected || isTodayDay ? 700 : 400,
                     color:      isSelected ? "white" : !isCurrentMonth ? "#E5E7EB" : isTodayDay ? "#6366F1" : "#374151",
                     lineHeight: "1.4",
@@ -200,7 +215,7 @@ export function CalendarScreen() {
         </div>
 
         {/* ── Day Detail Panel ──────────────────── */}
-        <div className="cal-a2" style={{ background:"white", borderRadius:20, border:"1px solid #EBEBEB", padding:20, minHeight:300, display:"flex", flexDirection:"column" }}>
+        <div className="cal-a2 cal-col-right" style={{ background:"white", borderRadius:20, border:"1px solid #EBEBEB", padding:20, minHeight:0, display:"flex", flexDirection:"column" }}>
           {selectedDate ? (
             <>
               <h3 className="cal-serif" style={{ fontSize:"1.1rem", color:"#0E1117", margin:"0 0 16px" }}>
@@ -252,7 +267,7 @@ export function CalendarScreen() {
                           </div>
                           {note.content && (
                             <p style={{ fontSize:11, color:"#9CA3AF", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                              {note.content.replace(/[#*`\n]/g," ").trim().slice(0, 70)}
+                              {getCleanPreview(note.content, 70)}
                             </p>
                           )}
                           {note.tags.length > 0 && (
@@ -289,11 +304,11 @@ export function CalendarScreen() {
                         >
                           <Clock size={13} color="#D97706" />
                           <div style={{ flex:1 }}>
-                            <div style={{ fontSize:13, fontWeight:600, color:"#0E1117", textDecoration: r.completed ? "line-through" : "none" }}>
+                            <div style={{ fontSize:13, fontWeight:600, color:"#0E1117", textDecoration: r.is_completed ? "line-through" : "none" }}>
                               {r.title}
                             </div>
                             <div style={{ fontSize:11, color:"#D97706" }}>
-                              {r.time}{r.completed ? " · Completed" : ""}
+                              {format(parseISO(r.scheduled_at), "h:mm a")}{r.is_completed ? " · Completed" : ""}
                             </div>
                           </div>
                         </div>

@@ -46,7 +46,7 @@ type FriendshipWithProfile = Friendship & {
 /* ─── CSS ──────────────────────────────────────────── */
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-.hg-root { font-family: 'Inter', sans-serif; display: flex; min-height: 100vh; background: #F8FAFC; color: #0F172A; }
+.hg-root { font-family: 'Inter', sans-serif; display: flex; min-height: 100dvh; background: #F8FAFC; color: #0F172A; }
 
 /* Sidebar */
 .hg-sidebar { width: 250px; background: white; border-right: 1px solid #E2E8F0; display: flex; flex-direction: column; padding: 24px 16px; flex-shrink: 0; }
@@ -84,6 +84,33 @@ const CSS = `
 
 .btn-primary { background: #065F46; color: white; padding: 10px 20px; border-radius: 100px; font-size: 14px; font-weight: 500; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
 .btn-primary:hover { background: #047857; }
+
+/* Responsive layout guards for tablet, mobile, and ultra-wide screens. */
+@media (max-width: 1024px) {
+  .hg-sidebar { width: 220px; }
+  .hg-header { padding: 0 18px; }
+  .hg-content-scroll { padding: 20px; }
+  .hg-page-title { font-size: 28px; }
+}
+
+@media (max-width: 768px) {
+  .hg-root { flex-direction: column; }
+  .hg-sidebar { width: 100%; border-right: none; border-bottom: 1px solid #E2E8F0; padding: 14px 12px; }
+  .hg-main { height: auto; min-height: 0; }
+  .hg-header { height: auto; padding: 12px 14px; flex-wrap: wrap; gap: 10px; }
+  .hg-search-bar { width: 100%; }
+  .hg-top-tabs { margin: 0; margin-right: 0; width: 100%; order: 3; height: auto; gap: 14px; }
+  .hg-content-scroll { padding: 14px; }
+  .hg-content-inner { max-width: 100%; }
+  .hg-page-top,
+  .hg-feed-layout,
+  .hg-friends-layout { flex-direction: column; align-items: stretch !important; }
+  .hg-feed-sidebar { width: 100% !important; }
+}
+
+@media (min-width: 1440px) {
+  .hg-content-inner { max-width: 1240px; }
+}
 `;
 
 type Tab = "FEED" | "FRIENDS";
@@ -495,7 +522,7 @@ export function Hangout() {
         <div className="hg-content-scroll">
           <div className="hg-content-inner">
             
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 32 }}>
+            <div className="hg-page-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 32, gap: 16 }}>
               <div>
                 <h1 className="hg-page-title">The Hangout</h1>
                 <div className="hg-page-subtitle">Your focused hub for academic collaboration and staying connected.</div>
@@ -523,7 +550,7 @@ export function Hangout() {
 
             {/* TAB: FEED */}
             {topTab === "FEED" && (
-              <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+              <div className="hg-feed-layout" style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
                 {/* Left Column (Posts) */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {feedPosts.map(post => (
@@ -574,7 +601,7 @@ export function Hangout() {
                 </div>
 
                 {/* Right Column (Sidebar Cards) */}
-                <div style={{ width: 300, flexShrink: 0 }}>
+                <div className="hg-feed-sidebar" style={{ width: 300, flexShrink: 0 }}>
                   <div className="hg-pending-card">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                       <h3 style={{ fontSize: 15, fontWeight: 600, color: "#0F172A", margin: 0 }}>Pending Requests</h3>
@@ -628,7 +655,7 @@ export function Hangout() {
 
             {/* TAB: FRIENDS (Merged with Requests) */}
             {topTab === "FRIENDS" && (
-              <div style={{ maxWidth: 800, display: "flex", flexDirection: "column", gap: 32 }}>
+              <div className="hg-friends-layout" style={{ maxWidth: 800, display: "flex", flexDirection: "column", gap: 32 }}>
                 
                 {/* Search / Add Friend Section */}
                 <div style={{ background: "white", borderRadius: 24, border: "1px solid #E2E8F0", padding: 32 }}>

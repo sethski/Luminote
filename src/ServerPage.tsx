@@ -237,6 +237,58 @@ const CSS = `
   transform: translateY(-2px);
   box-shadow: 0 16px 34px rgba(16, 185, 129, 0.38);
 }
+
+/* Responsive layout controls for tablets, phones, and wide displays. */
+@media (max-width: 1024px) {
+  .sp-sidebar { width: 230px; }
+  .sp-right-aside { width: 270px; }
+  .sp-header { padding: 0 18px; }
+  .sp-chat-area { padding: 20px; }
+  .sp-input-area { padding: 16px; }
+  .sp-call-grid { padding: 22px; gap: 16px; }
+}
+
+@media (max-width: 768px) {
+  .sp-root { flex-direction: column; height: 100dvh; }
+  .sp-sidebar { width: 100%; max-height: 38vh; border-right: none; border-bottom: 1px solid var(--border); }
+  .sp-main { min-height: 0; }
+  .sp-right-aside { display: none; }
+  .sp-header { height: auto; padding: 12px 14px; }
+  .sp-chat-area { padding: 14px; gap: 14px; }
+  .sp-input-area { padding: 12px; }
+  .sp-input-box { padding-left: 14px; }
+  .sp-call-header { padding: 12px 14px; }
+  .sp-call-grid,
+  .sp-call-grid.with-share { grid-template-columns: 1fr !important; padding: 14px !important; gap: 12px !important; }
+  .sp-call-stage-view { padding: 10px; gap: 12px; }
+  .sp-stage-area { padding-top: 0; }
+  .sp-thumbnail-bar { gap: 10px; padding: 10px 12px; max-width: 96vw; }
+  .sp-call-toolbar { bottom: 12px; padding: 10px 14px; gap: 8px; }
+  .sp-tool-btn { width: 44px; height: 44px; }
+  .sp-participant { border-radius: 20px; }
+  .sp-participant.stage { border-radius: 24px; max-height: 72vh; }
+  .sp-participant-name { font-size: 12px; left: 12px; bottom: 12px; }
+  .sp-side-chat {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 52dvh;
+    z-index: 55;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+  .sp-side-chat.collapsed {
+    margin-right: 0;
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+@media (min-width: 1440px) {
+  .sp-call-grid { max-width: 1760px; }
+}
 `;
 
 const Initials = ({ name, size = 32 }: { name: string; size?: number }) => {

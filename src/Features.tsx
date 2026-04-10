@@ -19,16 +19,17 @@ export function Features() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex-1 overflow-auto p-6">
-      <h1 className="text-xl text-gray-900 mb-1" style={{ fontWeight: 700 }}>All Features</h1>
-      <p className="text-sm text-gray-400 mb-6">Everything Luminote has to offer.</p>
+    <div className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 min-[1440px]:p-10">
+      <h1 className="mb-1 text-xl text-gray-900 sm:text-2xl" style={{ fontWeight: 700 }}>All Features</h1>
+      <p className="mb-5 text-sm text-gray-400 sm:mb-6">Everything Luminote has to offer.</p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {/* Responsive grid aligned to key breakpoints. */}
+      <div className="grid grid-cols-2 gap-3 min-[480px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 min-[1440px]:grid-cols-5">
         {features.map((f) => (
           <button
             key={f.name}
             onClick={() => navigate(f.to)}
-            className="flex flex-col items-center gap-2.5 bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all active:scale-[0.97]"
+            className="flex min-h-28 flex-col items-center gap-2.5 rounded-2xl border border-gray-100 bg-white p-4 transition-all active:scale-[0.97] hover:shadow-md sm:min-h-32 sm:p-5"
           >
             <div className={`w-12 h-12 rounded-2xl ${f.color} flex items-center justify-center`}>
               <f.icon size={22} />

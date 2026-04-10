@@ -59,6 +59,15 @@ export type Profile = {
   display_name: string | null;
   avatar_url:   string | null;
   email:        string | null;
+  pronouns:     string | null;
+  bio:          string | null;
+  school_id:    number | null;
+  school_name:  string | null;
+  school_short_name: string | null;
+  school_type:   string | null;
+  school_region: string | null;
+  school_logo:   string | null;
+  socials:       Array<{ id: string; platform: string; url: string }> | null;
   created_at:   string;
 };
 
@@ -69,6 +78,7 @@ export type UserSettings = {
   font_size:             number;
   paper_default:         string;
   notifications_enabled: boolean;
+  daily_study_goal_hours: number;
   updated_at:            string;
 };
 
@@ -77,6 +87,7 @@ export type Note = {
   user_id:     string;
   title:       string;
   content:     string;
+  course_id?:  string | null;
   tags:        string[];
   paper_style: string;
   color_style: string;
@@ -123,13 +134,16 @@ export type Friendship = {
 };
 
 export type Reminder = {
-  id:         string;
-  user_id:    string;
-  title:      string;
-  date:       string;
-  time:       string;
-  completed:  boolean;
-  note_id:    string | null;
-  created_at: string;
-  updated_at: string;
+  id:           string;
+  user_id:      string;
+  note_id:      string | null;
+  title:        string;
+  scheduled_at: string;  // ISO8601 timestamp
+  is_completed: boolean;
+  // Backward compatibility fields for older reminder schema.
+  date?:        string;
+  time?:        string;
+  completed?:   boolean;
+  created_at:   string;
+  updated_at:   string;
 };

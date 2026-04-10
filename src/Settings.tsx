@@ -30,15 +30,28 @@ const THEMES = [
   { id: "obsidian" as const, label: "Obsidian", Icon: Moon, bg: "#0b0f19", textC: "#e5e7eb" },
 ];
 
+const SETTINGS_RESPONSIVE_CSS = `
+/* Responsive settings modal behavior for phone/tablet screens. */
+@media (max-width: 768px) {
+  .settings-overlay { align-items: flex-start; }
+  .settings-modal { max-height: calc(100dvh - 24px); }
+  .settings-header,
+  .settings-body,
+  .settings-footer { padding-left: 16px !important; padding-right: 16px !important; }
+  .settings-footer { justify-content: stretch !important; }
+  .settings-footer > button { width: 100%; }
+}
+`;
+
 const S: Record<string, React.CSSProperties> = {
-  overlay:  { position:"fixed", inset:0, zIndex:100, background:"rgba(14,17,23,.45)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 },
-  modal:    { width:"100%", maxWidth:640, maxHeight:"90vh", background:"white", borderRadius:24, boxShadow:"0 32px 80px rgba(0,0,0,.18)", display:"flex", flexDirection:"column", overflow:"hidden", border:"1px solid #E5E7EB" },
-  header:   { display:"flex", alignItems:"flex-start", justifyContent:"space-between", padding:"28px 28px 16px", borderBottom:"1px solid #F3F4F6" },
-  body:     { overflowY:"auto", flex:1, padding:"20px 28px 28px" },
-  footer:   { padding:"16px 28px", borderTop:"1px solid #F3F4F6", background:"#FAFAFA", display:"flex", justifyContent:"flex-end", gap:10 },
+  overlay:  { position:"fixed", inset:0, zIndex:100, background:"rgba(14,17,23,.45)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:"clamp(12px, 2vw, 20px)" },
+  modal:    { width:"100%", maxWidth:720, maxHeight:"min(92dvh, 960px)", background:"white", borderRadius:24, boxShadow:"0 32px 80px rgba(0,0,0,.18)", display:"flex", flexDirection:"column", overflow:"hidden", border:"1px solid #E5E7EB" },
+  header:   { display:"flex", alignItems:"flex-start", justifyContent:"space-between", padding:"clamp(18px, 2vw, 28px) clamp(18px, 2vw, 28px) 16px", borderBottom:"1px solid #F3F4F6", gap:12 },
+  body:     { overflowY:"auto", flex:1, padding:"20px clamp(18px, 2vw, 28px) clamp(18px, 2vw, 28px)" },
+  footer:   { padding:"16px clamp(18px, 2vw, 28px)", borderTop:"1px solid #F3F4F6", background:"#FAFAFA", display:"flex", justifyContent:"flex-end", gap:10 },
   secHead:  { display:"flex", alignItems:"center", gap:8, marginBottom:12 },
   secLabel: { fontSize:11, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase" as const, letterSpacing:".08em" },
-  row:      { display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 16px", background:"#FAFAFA", borderRadius:14, border:"1px solid #F3F4F6", marginBottom:8 },
+  row:      { display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12, padding:"14px 16px", background:"#FAFAFA", borderRadius:14, border:"1px solid #F3F4F6", marginBottom:8 },
 };
 
 export function Settings() {
@@ -86,27 +99,28 @@ export function Settings() {
   );
 
   return (
-    <div style={S.overlay} role="dialog" aria-modal="true">
-      <div style={S.modal}>
+    <div className="settings-overlay" style={S.overlay} role="dialog" aria-modal="true">
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}${SETTINGS_RESPONSIVE_CSS}`}</style>
+      <div className="settings-modal" style={S.modal}>
 
         {/* Header */}
-        <div style={S.header}>
+        <div className="settings-header" style={S.header}>
           <div>
             <h1 style={{ fontSize:"1.6rem", fontWeight:700, color:"#0E1117", marginBottom:3 }}>Settings</h1>
             <p style={{ fontSize:14, color:"#9CA3AF" }}>Personalize your Luminote experience</p>
           </div>
           <button type="button" onClick={() => navigate(-1)}
-            style={{ width:36, height:36, borderRadius:10, border:"1.5px solid #E5E7EB", background:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#6B7280" }}>
+            style={{ width:40, height:40, borderRadius:10, border:"1.5px solid #E5E7EB", background:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"#6B7280" }}>
             <X size={16} />
           </button>
         </div>
 
         {/* Body */}
-        <div style={S.body}>
+        <div className="settings-body" style={S.body}>
 
           {/* ── Appearance ─────────────────────── */}
           <Section icon={Palette} title="Appearance">
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:8 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))", gap:8, marginBottom:8 }}>
               {THEMES.map(({ id, label, Icon: TIcon, bg, textC }) => {
                 const active = settings?.theme === id;
                 return (
@@ -126,7 +140,7 @@ export function Settings() {
           {/* ── Typography ─────────────────────── */}
           <Section icon={Type} title="Typography">
             <p style={{ fontSize:12, fontWeight:600, color:"#6B7280", marginBottom:8 }}>Font Family</p>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:14 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))", gap:6, marginBottom:14 }}>
               {FONTS.map(f => {
                 const active = settings?.font_family === f.id;
                 return (
@@ -139,7 +153,7 @@ export function Settings() {
               })}
             </div>
             <p style={{ fontSize:12, fontWeight:600, color:"#6B7280", marginBottom:8 }}>Font Size</p>
-            <div style={{ display:"flex", gap:6 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(56px,1fr))", gap:6 }}>
               {FONT_SIZES.map(size => {
                 const active = settings?.font_size === size;
                 return (
@@ -258,14 +272,13 @@ export function Settings() {
         </div>
 
         {/* Footer */}
-        <div style={S.footer}>
+        <div className="settings-footer" style={S.footer}>
           <button type="button" onClick={() => navigate(-1)}
             style={{ padding:"10px 24px", background:"#0E1117", color:"white", border:"none", borderRadius:12, fontFamily:"inherit", fontSize:14, fontWeight:600, cursor:"pointer" }}>
             Done
           </button>
         </div>
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

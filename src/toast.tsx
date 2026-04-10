@@ -120,14 +120,23 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     dismiss,
   };
 
-  // Ensure portal target exists
+  // Ensure portal target exists with proper cleanup
   useEffect(() => {
-    if (!document.getElementById("toast-root")) {
-      const el = document.createElement("div");
-      el.id = "toast-root";
-      document.body.appendChild(el);
+    let portalRoot = document.getElementById("toast-root");
+    if (!portalRoot) {
+      portalRoot = document.createElement("div");
+      portalRoot.id = "toast-root";
+      document.body.appendChild(portalRoot);
     }
-  }, []);
+    
+    // Cleanup: remove portal root only if it has no children and will be recreated if needed
+    return () => {
+      const root = document.getElementById("toast-root");
+      if (root && root.childNodes.length === 0 && toasts.length === 0) {
+        root.remove();
+      }
+    };
+  }, [toasts]);
 
   const portal = document.getElementById("toast-root");
 

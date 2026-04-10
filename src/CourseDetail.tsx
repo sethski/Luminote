@@ -1,13 +1,18 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
-  ArrowLeft, Plus, Folder, FileText, Trash2, Edit2, X, FolderPlus, MoreHorizontal
+  ArrowLeft, Plus, Folder, FileText, Trash2, Edit2, X, FolderPlus, Search, ArrowUpDown, Brush
 } from "lucide-react";
+import { useAuth } from "./AuthContext";
+import { useNotes } from "./NotesContext";
+import { getCleanPreview } from "./utils";
+import { supabase } from "./supabaseClient";
 
 interface Note {
   id: string;
   title: string;
   content: string;
+  updatedAt?: string;
 }
 
 interface Folder {
@@ -20,6 +25,9 @@ interface Folder {
 export function CourseDetail() {
   const navigate = useNavigate();
   const { courseId } = useParams();
+  const { user } = useAuth();
+  const { notes: allNotes, addNoteForCourse } = useNotes();
+  const noteCourseStorageKey = user ? `luminote-note-course-map-${user.id}` : "luminote-note-course-map-guest";
   
   // Get course from localStorage or passed state
   const [courseData, setCourseData] = useState<any>(() => {
@@ -46,6 +54,82 @@ export function CourseDetail() {
   const [draggedNote, setDraggedNote] = useState<string | null>(null);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
+  const [noteSearchQuery, setNoteSearchQuery] = useState("");
+  const [noteSort, setNoteSort] = useState<"last-edited" | "name-asc">("last-edited");
+  const [isEmptyDropZoneActive, setIsEmptyDropZoneActive] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id || !courseId) return;
+
+    const loadCourse = async () => {
+      const { data } = await supabase
+        .from("user_courses")
+        .select("id, code, title, subtitle")
+        .eq("id", courseId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!data) return;
+
+      setCourseData((prev: any) => ({
+        ...prev,
+        ...(data as any),
+      }));
+      localStorage.setItem(`course-${courseId}`, JSON.stringify(data));
+    };
+
+    void loadCourse();
+  }, [courseId, user?.id]);
+
+  const backendLinkedNotes = useMemo<Note[]>(() => {
+    if (!courseId) return [];
+
+    return allNotes
+      .filter((n) => n.course_id === courseId)
+      .map((n) => ({
+        id: n.id,
+        title: n.title || "Untitled Note",
+        content: n.content || "",
+        updatedAt: (n as any).updated_at || (n as any).created_at,
+      }));
+  }, [allNotes, courseId]);
+
+  const locallyMappedNotes = useMemo<Note[]>(() => {
+    if (!courseId) return [];
+
+    try {
+      const raw = localStorage.getItem(noteCourseStorageKey);
+      const mapping = raw ? JSON.parse(raw) : {};
+      if (!mapping || typeof mapping !== "object") return [];
+
+      return allNotes
+        .filter((n) => typeof (mapping as any)[n.id] === "string" && (mapping as any)[n.id] === courseId)
+        .map((n) => ({
+          id: n.id,
+          title: n.title || "Untitled Note",
+          content: n.content || "",
+          updatedAt: (n as any).updated_at || (n as any).created_at,
+        }));
+    } catch {
+      return [];
+    }
+  }, [allNotes, courseId, noteCourseStorageKey]);
+
+  const mergedNotes = useMemo<Note[]>(() => {
+    const byId = new Map<string, Note>();
+
+    for (const item of backendLinkedNotes) {
+      byId.set(item.id, item);
+    }
+    for (const item of locallyMappedNotes) {
+      if (!byId.has(item.id)) byId.set(item.id, item);
+    }
+    for (const item of notes) {
+      if (!byId.has(item.id)) byId.set(item.id, item);
+    }
+
+    return Array.from(byId.values());
+  }, [backendLinkedNotes, locallyMappedNotes, notes]);
 
   // Save to localStorage
   const saveFolders = (newFolders: Folder[]) => {
@@ -96,7 +180,45 @@ export function CourseDetail() {
     saveFolders(folders.map(f => f.id === folderId ? {...f, notes: f.notes.filter(n => n !== noteId)} : f));
   };
 
-  const unassignedNotes = notes.filter(note => !folders.some(f => f.notes.includes(note.id)));
+  const unassignedNotes = mergedNotes.filter(note => !folders.some(f => f.notes.includes(note.id)));
+
+  const visibleUnassignedNotes = useMemo(() => {
+    const query = noteSearchQuery.trim().toLowerCase();
+
+    const filtered = unassignedNotes.filter((note) => {
+      if (!query) return true;
+      return note.title.toLowerCase().includes(query) || note.content.toLowerCase().includes(query);
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (noteSort === "name-asc") {
+        return a.title.localeCompare(b.title);
+      }
+
+      const aDate = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const bDate = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return bDate - aDate;
+    });
+  }, [unassignedNotes, noteSearchQuery, noteSort]);
+
+  const getNoteTimestamp = (note: Note) => {
+    if (!note.updatedAt) return "Last edited: Unknown";
+
+    const edited = new Date(note.updatedAt);
+    if (Number.isNaN(edited.getTime())) return "Last edited: Unknown";
+
+    return `Last edited: ${edited.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })}`;
+  };
+
+  const getNotePreviewLabel = (content: string) => {
+    if (!content?.trim()) return "Empty note";
+    if (content.includes("LUMINOTE_DRAW")) return "Drawing note";
+    return "Text note";
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -110,6 +232,13 @@ export function CourseDetail() {
             >
               <ArrowLeft className="w-5 h-5" />
               Back
+            </button>
+            <button
+              onClick={() => courseId && addNoteForCourse(courseId).then(noteId => navigate(`/home/editor/${noteId}`))}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              New Note
             </button>
           </div>
           <div>
@@ -131,30 +260,71 @@ export function CourseDetail() {
                 <FileText className="w-5 h-5 text-amber-500" />
                 Unassigned Notes
               </h2>
+
+              <div className="space-y-3 mb-4">
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={noteSearchQuery}
+                    onChange={(e) => setNoteSearchQuery(e.target.value)}
+                    placeholder="Search notes"
+                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                  />
+                </div>
+
+                <div className="relative">
+                  <ArrowUpDown className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <select
+                    value={noteSort}
+                    onChange={(e) => setNoteSort(e.target.value as "last-edited" | "name-asc")}
+                    className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 appearance-none"
+                  >
+                    <option value="last-edited">Sort: Last Edited</option>
+                    <option value="name-asc">Sort: Name A-Z</option>
+                  </select>
+                </div>
+              </div>
               
-              {unassignedNotes.length === 0 ? (
+              {visibleUnassignedNotes.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
                     <FileText className="w-5 h-5 text-slate-300" />
                   </div>
-                  <p className="text-sm text-slate-500">No unassigned notes</p>
+                  <p className="text-sm text-slate-500">
+                    {unassignedNotes.length === 0 ? "No unassigned notes" : "No notes match your search"}
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {unassignedNotes.map(note => (
+                <div className="space-y-3 max-h-[62vh] overflow-y-auto pr-1">
+                  {visibleUnassignedNotes.map(note => (
                     <div
                       key={note.id}
                       draggable
-                      onDragStart={() => setDraggedNote(note.id)}
-                      onDragEnd={() => setDraggedNote(null)}
-                      className={`p-3 rounded-lg border-2 border-dashed cursor-move transition-all ${
+                      onDragStart={(e) => {
+                        setDraggedNote(note.id);
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragEnd={() => {
+                        setDraggedNote(null);
+                        setIsEmptyDropZoneActive(false);
+                      }}
+                      className={`p-3 rounded-xl border cursor-move transition-all bg-white shadow-sm ${
                         draggedNote === note.id
-                          ? "bg-amber-50 border-amber-300 opacity-50"
-                          : "bg-slate-50 border-slate-200 hover:border-amber-300 hover:bg-amber-50"
+                          ? "border-blue-300 ring-2 ring-blue-100 opacity-70"
+                          : "border-slate-200 hover:border-blue-200 hover:shadow-md"
                       }`}
                     >
-                      <p className="text-sm font-semibold text-slate-700 truncate">{note.title}</p>
-                      <p className="text-xs text-slate-500 truncate mt-1">{note.content.substring(0, 50)}...</p>
+                      <p className="text-sm font-semibold text-slate-800 truncate">{note.title}</p>
+
+                      <div className="mt-2 h-20 rounded-lg border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-200/70 flex items-center justify-center text-slate-500">
+                        <div className="text-center">
+                          <Brush className="w-5 h-5 mx-auto mb-1 text-slate-400" />
+                          <p className="text-[11px] font-medium uppercase tracking-wide">{getNotePreviewLabel(note.content)}</p>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-500 mt-2">{getNoteTimestamp(note)}</p>
                     </div>
                   ))}
                 </div>
@@ -210,24 +380,51 @@ export function CourseDetail() {
 
             {/* Folders Grid */}
             {folders.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                  <Folder className="w-8 h-8 text-slate-400" />
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (draggedNote) setIsEmptyDropZoneActive(true);
+                }}
+                onDragLeave={() => setIsEmptyDropZoneActive(false)}
+                onDrop={() => {
+                  setIsEmptyDropZoneActive(false);
+                  setDraggedNote(null);
+                }}
+                className={`flex flex-col items-center justify-center py-16 rounded-2xl border-2 border-dashed transition-all ${
+                  isEmptyDropZoneActive
+                    ? "bg-blue-50 border-blue-400 shadow-lg shadow-blue-200/50"
+                    : "bg-white border-slate-300"
+                }`}
+              >
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors ${isEmptyDropZoneActive ? "bg-blue-100" : "bg-slate-100"}`}>
+                  <Folder className={`w-8 h-8 ${isEmptyDropZoneActive ? "text-blue-600" : "text-slate-400"}`} />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-2">No folders yet</h3>
-                <p className="text-slate-500 text-center max-w-sm mb-6">Create a folder to organize your notes and drag notes from the left to keep things tidy.</p>
-                <button
-                  onClick={() => setIsAddFolderOpen(true)}
-                  className="px-5 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-600 font-bold rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create First Folder
-                </button>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">No folders yet</h3>
+                <p className="text-slate-500 text-center max-w-md mb-6 px-4">
+                  {isEmptyDropZoneActive
+                    ? "Release to drop this note in your workspace, then create a folder to organize it."
+                    : "Drag notes from the left into this drop zone, or create your first folder to organize your course content."}
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    onClick={() => setIsAddFolderOpen(true)}
+                    className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Folder
+                  </button>
+                  <button
+                    type="button"
+                    className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold rounded-lg transition-colors"
+                  >
+                    Drop notes here
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {folders.map(folder => {
-                  const folderNotes = notes.filter(n => folder.notes.includes(n.id));
+                  const folderNotes = mergedNotes.filter(n => folder.notes.includes(n.id));
                   return (
                     <div
                       key={folder.id}
@@ -279,14 +476,18 @@ export function CourseDetail() {
                           {folderNotes.map(note => (
                             <div
                               key={note.id}
-                              className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start justify-between group hover:bg-blue-100 transition-colors"
+                              onClick={() => navigate(`/home/editor/${note.id}`)}
+                              className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start justify-between group hover:bg-blue-100 transition-colors cursor-pointer"
                             >
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold text-slate-800 truncate">{note.title}</p>
-                                <p className="text-xs text-slate-600 truncate mt-0.5">{note.content.substring(0, 40)}...</p>
+                                <p className="text-xs text-slate-600 truncate mt-0.5">{getCleanPreview(note.content, 40)}</p>
                               </div>
                               <button
-                                onClick={() => removeNoteFromFolder(folder.id, note.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeNoteFromFolder(folder.id, note.id);
+                                }}
                                 className="ml-2 p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
                               >
                                 <X className="w-4 h-4" />

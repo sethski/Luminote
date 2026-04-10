@@ -10,6 +10,15 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   display_name  TEXT,
   avatar_url    TEXT,
   email         TEXT,
+  pronouns      TEXT,
+  bio           TEXT,
+  school_id     INTEGER,
+  school_name   TEXT,
+  school_short_name TEXT,
+  school_type   TEXT,
+  school_region TEXT,
+  school_logo   TEXT,
+  socials       JSONB DEFAULT '[]'::jsonb,
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -19,20 +28,37 @@ CREATE POLICY "Users can read own profile"
   ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
+CREATE POLICY "Users can insert own profile"
+  ON public.profiles FOR INSERT
+  WITH CHECK (auth.uid() = id);
+
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can delete own profile"
+  ON public.profiles FOR DELETE
   USING (auth.uid() = id);
 
 -- Trigger: auto-create profile on new user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  INSERT INTO public.profiles (id, display_name, avatar_url, email)
+  INSERT INTO public.profiles (id, display_name, avatar_url, email, pronouns, bio, school_id, school_name, school_short_name, school_type, school_region, school_logo, socials)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
     NEW.raw_user_meta_data->>'avatar_url',
-    NEW.email
+    NEW.email,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    '[]'::jsonb
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
@@ -53,6 +79,7 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
   font_size            INTEGER DEFAULT 16 CHECK (font_size BETWEEN 12 AND 24),
   paper_default        TEXT DEFAULT 'plain',
   notifications_enabled BOOLEAN DEFAULT TRUE,
+  daily_study_goal_hours NUMERIC(4,1) DEFAULT 12 CHECK (daily_study_goal_hours BETWEEN 1 AND 24),
   updated_at           TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -173,6 +200,34 @@ CREATE TRIGGER study_plans_updated_at
   FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
 
 
+-- ─── 5A. REMINDERS ────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.reminders (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  note_id       UUID REFERENCES public.notes(id) ON DELETE CASCADE,
+  title         TEXT NOT NULL,
+  scheduled_at  TIMESTAMPTZ NOT NULL,
+  is_completed  BOOLEAN DEFAULT FALSE,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS reminders_user_id_idx ON public.reminders(user_id);
+CREATE INDEX IF NOT EXISTS reminders_scheduled_at_idx ON public.reminders(scheduled_at);
+CREATE INDEX IF NOT EXISTS reminders_note_id_idx ON public.reminders(note_id);
+
+ALTER TABLE public.reminders ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can CRUD own reminders"
+  ON public.reminders FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE TRIGGER reminders_updated_at
+  BEFORE UPDATE ON public.reminders
+  FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
+
+
 -- ─── 5B. USER COURSES ──────────────────────────────
 CREATE TABLE IF NOT EXISTS public.user_courses (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -200,6 +255,27 @@ CREATE POLICY "Users can CRUD own courses"
 CREATE TRIGGER user_courses_updated_at
   BEFORE UPDATE ON public.user_courses
   FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
+
+-- Link notes to a course (optional)
+ALTER TABLE public.notes
+  ADD COLUMN IF NOT EXISTS course_id UUID;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'notes_course_id_fkey'
+  ) THEN
+    ALTER TABLE public.notes
+      ADD CONSTRAINT notes_course_id_fkey
+      FOREIGN KEY (course_id)
+      REFERENCES public.user_courses(id)
+      ON DELETE SET NULL;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS notes_course_id_idx ON public.notes(course_id);
 
 
 -- ─── 6. FRIENDSHIPS ──────────────────────────────────

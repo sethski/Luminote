@@ -172,6 +172,21 @@ const LAND_CSS = `
 /* ── Scrollbar hide ─────────────────────────── */
 .ln-no-scroll::-webkit-scrollbar { display: none; }
 .ln-no-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Breakpoint tuning: <=480 phones, <=768 tablets, and 1440+ desktops. */
+@media (max-width: 768px) {
+  .ln-btn-primary,
+  .ln-btn-outline,
+  .ln-btn-accent { min-height: 44px; }
+}
+
+@media (max-width: 480px) {
+  .ln-root nav .max-w-6xl { padding-left: 14px; padding-right: 14px; }
+}
+
+@media (min-width: 1440px) {
+  .ln-root .max-w-6xl { max-width: 1320px; }
+}
 `;
 
 /* ─── Feature data ─────────────────────────────── */

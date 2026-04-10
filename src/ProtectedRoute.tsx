@@ -10,7 +10,7 @@ import { useAuth } from "./AuthContext";
 import { BookOpen } from "lucide-react";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, session, loading } = useAuth();
   const location = useLocation();
 
   // Session is still loading — show a branded splash
@@ -68,7 +68,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   // Not authenticated — redirect to login
-  if (!user) {
+  if (!user && !session) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
