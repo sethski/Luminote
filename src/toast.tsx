@@ -23,6 +23,7 @@ type ToastContextType = {
   info:    (msg: string, duration?: number) => string;
   loading: (msg: string) => string;
   dismiss: (id: string) => void;
+  toast:   (message: string, type?: ToastType, duration?: number) => string;
 };
 
 const ToastContext = createContext<ToastContextType | null>(null);
@@ -118,6 +119,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     info:    (msg, d) => add("info",    msg, d),
     loading: (msg)    => add("loading", msg, 0),
     dismiss,
+    toast: (msg, type = "info", d) => add(type, msg, d),
   };
 
   // Ensure portal target exists with proper cleanup

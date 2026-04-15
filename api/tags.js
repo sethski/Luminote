@@ -1,4 +1,12 @@
 import { serviceClient, verifyRequestUser } from "./_lib/supabase.js";
+import {
+  DEFAULT_TAGS,
+  DEFAULT_TAG_NAME_SET,
+  ensureDefaultTags,
+  normalizeColor,
+  normalizeTagName,
+  toTagResponse,
+} from "./_lib/tags.js";
 
 function json(res, status, payload) {
   res.status(status).setHeader("Content-Type", "application/json").send(JSON.stringify(payload));
@@ -7,9 +15,7 @@ function json(res, status, payload) {
 export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
-      // Get all tags for a user
       const userId = typeof req.query.userId === "string" ? req.query.userId.trim() : "";
-      
       if (!userId) {
         return json(res, 400, { error: "userId is required" });
       }
@@ -19,34 +25,44 @@ export default async function handler(req, res) {
         return json(res, auth.status, { error: auth.error });
       }
 
+      await ensureDefaultTags(serviceClient);
+
       const { data, error } = await serviceClient
-        .from("notes")
-        .select("tags")
-        .eq("user_id", userId)
-        .eq("is_deleted", false);
+        .from("tags")
+        .select("id,name,color,user_id,is_default")
+        .or(`is_default.eq.true,user_id.eq.${userId}`)
+        .order("is_default", { ascending: false })
+        .order("name", { ascending: true });
 
       if (error) {
         return json(res, 500, { error: "Failed to fetch tags", details: error.message });
       }
 
-      // Aggregate all unique tags
-      const allTags = new Set();
-      (data || []).forEach(note => {
-        if (Array.isArray(note.tags)) {
-          note.tags.forEach(tag => allTags.add(tag));
-        }
+      const defaultOrder = new Map(DEFAULT_TAGS.map((tag, index) => [tag.name.toLowerCase(), index]));
+      const filtered = (data || []).filter((row) => {
+        if (!row.is_default) return true;
+        return DEFAULT_TAG_NAME_SET.has(String(row.name).toLowerCase());
       });
 
-      return json(res, 200, { tags: Array.from(allTags).sort() });
+      filtered.sort((a, b) => {
+        if (a.is_default && b.is_default) {
+          return (defaultOrder.get(String(a.name).toLowerCase()) ?? 999) - (defaultOrder.get(String(b.name).toLowerCase()) ?? 999);
+        }
+        if (a.is_default !== b.is_default) {
+          return a.is_default ? -1 : 1;
+        }
+        return String(a.name).localeCompare(String(b.name));
+      });
+
+      return json(res, 200, { tags: filtered.map(toTagResponse) });
     } else if (req.method === "POST") {
-      // Update tags for a note
       const body = req.body && typeof req.body === "object" ? req.body : {};
       const userId = typeof body.userId === "string" ? body.userId.trim() : "";
-      const noteId = typeof body.noteId === "string" ? body.noteId.trim() : "";
-      const tags = Array.isArray(body.tags) ? body.tags.map((t) => String(t).trim().toUpperCase()).filter(Boolean) : [];
+      const name = normalizeTagName(body.name);
+      const color = normalizeColor(body.color, "#64748B");
 
-      if (!userId || !noteId) {
-        return json(res, 400, { error: "userId and noteId are required" });
+      if (!userId || !name) {
+        return json(res, 400, { error: "userId and name are required" });
       }
 
       const auth = await verifyRequestUser(req, userId);
@@ -54,34 +70,39 @@ export default async function handler(req, res) {
         return json(res, auth.status, { error: auth.error });
       }
 
-      // Verify note belongs to user
-      const { data: noteData, error: noteError } = await serviceClient
-        .from("notes")
+      await ensureDefaultTags(serviceClient);
+
+      const { data: duplicate, error: duplicateError } = await serviceClient
+        .from("tags")
         .select("id")
-        .eq("id", noteId)
-        .eq("user_id", userId)
+        .or(`is_default.eq.true,user_id.eq.${userId}`)
+        .ilike("name", name)
+        .limit(1);
+
+      if (duplicateError) {
+        return json(res, 500, { error: "Failed to validate tag uniqueness", details: duplicateError.message });
+      }
+
+      if (Array.isArray(duplicate) && duplicate.length > 0) {
+        return json(res, 409, { error: "Tag already exists" });
+      }
+
+      const { data: inserted, error: insertError } = await serviceClient
+        .from("tags")
+        .insert({
+          name,
+          color,
+          user_id: userId,
+          is_default: false,
+        })
+        .select("id,name,color,user_id,is_default")
         .single();
 
-      if (noteError || !noteData) {
-        return json(res, 404, { error: "Note not found" });
+      if (insertError || !inserted) {
+        return json(res, 500, { error: "Failed to create tag", details: insertError?.message ?? "Unknown error" });
       }
 
-      // Update tags
-      const { data: updated, error: updateError } = await serviceClient
-        .from("notes")
-        .update({ tags, updated_at: new Date().toISOString() })
-        .eq("id", noteId)
-        .eq("user_id", userId)
-        .select();
-
-      if (updateError) {
-        return json(res, 500, { error: "Failed to update tags", details: updateError.message });
-      }
-
-      return json(res, 200, { 
-        success: true, 
-        tags: (updated && updated[0] && updated[0].tags) || [] 
-      });
+      return json(res, 201, { tag: toTagResponse(inserted) });
     } else {
       return json(res, 405, { error: "Method not allowed" });
     }

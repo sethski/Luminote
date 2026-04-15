@@ -3,6 +3,7 @@
  * Uses VITE_OPENROUTER_API_KEY directly (dev + prod via env).
  */
 import { supabase } from "./supabaseClient";
+import { DEFAULT_TAG_NAMES } from "./tagSystem";
 
 type QwenMessage = { role: "system" | "user" | "assistant"; content: string };
 type QwenOptions = { max_tokens?: number; temperature?: number };
@@ -70,7 +71,7 @@ export async function summarizeNote(content: string, title: string): Promise<str
 export async function autoTagNote(
   content: string,
   title: string,
-  availableTags = ["RESEARCH", "PLANNING", "TEAM", "TECH", "CREATIVE", "PERSONAL", "INSPIRATION"]
+  availableTags = DEFAULT_TAG_NAMES
 ): Promise<string[]> {
   const result = await callQwen([
     {

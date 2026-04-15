@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router";
-import { Search, Filter, Pin, Star, Plus, X, Send, Bot, FileText, Trash2 } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { Search, Filter, Pin, Star, Plus, X, Send, Bot, FileText, Trash2, Check } from "lucide-react";
 import { useNotes, Note } from "./NotesContext";
 import { useAuth } from "./AuthContext";
 import { lumiChat } from "./qwen";
 import { getCleanPreview } from "./utils";
+import { DEFAULT_TAG_NAMES, getTagStyle } from "./tagSystem";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -29,6 +30,15 @@ type ChatMessage = {
 type NoteAiResult = {
   answer: string;
   relevantNoteIds: string[];
+};
+
+type TagFilterItem = {
+  id: string;
+  name: string;
+  color: string;
+  count: number;
+  isDefault: boolean;
+  isPersonalized: boolean;
 };
 
 async function parseApiResponse(response: Response): Promise<any> {
@@ -210,6 +220,7 @@ export function AllNotes() {
   const { notes, searchQuery, setSearchQuery, addNote, deleteNote } = useNotes();
   const { user, session } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [chatMode, setChatMode] = useState<ChatMode>("notes");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -221,6 +232,192 @@ export function AllNotes() {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [filterTagsLoading, setFilterTagsLoading] = useState(false);
+  const [filterTags, setFilterTags] = useState<TagFilterItem[]>([]);
+  const [pendingTagIds, setPendingTagIds] = useState<string[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const filterMenuRef = useRef<HTMLDivElement | null>(null);
+  const filterButtonRef = useRef<HTMLButtonElement | null>(null);
+  const initializedFromUrl = useRef(false);
+
+  const defaultTagOrder = useMemo(
+    () => new Map(DEFAULT_TAG_NAMES.map((name, idx) => [name.toLowerCase(), idx])),
+    []
+  );
+
+  const tagById = useMemo(
+    () => new Map(filterTags.map((tag) => [tag.id, tag])),
+    [filterTags]
+  );
+
+  const selectedTagNames = useMemo(
+    () => selectedTagIds
+      .map((id) => tagById.get(id)?.name?.toLowerCase())
+      .filter((name): name is string => Boolean(name)),
+    [selectedTagIds, tagById]
+  );
+
+  const selectedTagItems = useMemo(
+    () => selectedTagIds
+      .map((id) => tagById.get(id))
+      .filter((tag): tag is TagFilterItem => Boolean(tag)),
+    [selectedTagIds, tagById]
+  );
+
+  useEffect(() => {
+    if (!initializedFromUrl.current) {
+      const qFromUrl = searchParams.get("q") || "";
+      const tagsFromUrl = (searchParams.get("tags") || "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+      if (qFromUrl && qFromUrl !== searchQuery) {
+        setSearchQuery(qFromUrl);
+      }
+      if (tagsFromUrl.length) {
+        setSelectedTagIds([...new Set(tagsFromUrl)]);
+      }
+      initializedFromUrl.current = true;
+    }
+  }, [searchParams, searchQuery, setSearchQuery]);
+
+  useEffect(() => {
+    if (!initializedFromUrl.current) return;
+    const next = new URLSearchParams(searchParams);
+
+    if (searchQuery.trim()) next.set("q", searchQuery.trim());
+    else next.delete("q");
+
+    if (selectedTagIds.length) next.set("tags", selectedTagIds.join(","));
+    else next.delete("tags");
+
+    const current = searchParams.toString();
+    const nextValue = next.toString();
+    if (current !== nextValue) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchQuery, selectedTagIds, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!showFilterMenu) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowFilterMenu(false);
+        setPendingTagIds(selectedTagIds);
+        return;
+      }
+      if (e.key === "Enter") {
+        setSelectedTagIds(pendingTagIds);
+        setShowFilterMenu(false);
+      }
+    };
+
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (filterMenuRef.current?.contains(target)) return;
+      if (filterButtonRef.current?.contains(target)) return;
+      setShowFilterMenu(false);
+      setPendingTagIds(selectedTagIds);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("mousedown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [showFilterMenu, pendingTagIds, selectedTagIds]);
+
+  useEffect(() => {
+    const buildFallbackTags = (): TagFilterItem[] => {
+      const countByName = new Map<string, number>();
+      notes.forEach((note) => {
+        (Array.isArray(note.tags) ? note.tags : []).forEach((tag) => {
+          const normalized = String(tag || "").trim();
+          if (!normalized) return;
+          countByName.set(normalized, (countByName.get(normalized) || 0) + 1);
+        });
+      });
+
+      const defaults: TagFilterItem[] = DEFAULT_TAG_NAMES.map((name, idx) => ({
+        id: `default-${name.toLowerCase()}`,
+        name,
+        color: "#64748B",
+        count: countByName.get(name) || 0,
+        isDefault: true,
+        isPersonalized: false,
+      }));
+
+      const personalized: TagFilterItem[] = Array.from(countByName.entries())
+        .filter(([name]) => !defaultTagOrder.has(name.toLowerCase()))
+        .map(([name, count], idx) => ({
+          id: `personalized-${idx + 1}`,
+          name,
+          color: "#64748B",
+          count,
+          isDefault: false,
+          isPersonalized: true,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      return [...defaults, ...personalized];
+    };
+
+    const loadTagFilters = async () => {
+      if (!user?.id || !session?.access_token) {
+        setFilterTags(buildFallbackTags());
+        return;
+      }
+
+      try {
+        setFilterTagsLoading(true);
+        const response = await fetch(`/api/tags/with-counts?userId=${encodeURIComponent(user.id)}`, {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+        if (!response.ok) throw new Error(`Tag count request failed (${response.status})`);
+
+        const payload = await response.json();
+        const incoming = Array.isArray(payload?.tags) ? payload.tags : [];
+        const normalized = incoming
+          .map((row: any) => ({
+            id: String(row.id || ""),
+            name: String(row.name || "").trim(),
+            color: String(row.color || "#64748B"),
+            count: Number(row.count || 0),
+            isDefault: Boolean(row.isDefault),
+            isPersonalized: Boolean(row.isPersonalized),
+          }))
+          .filter((row: TagFilterItem) => Boolean(row.id && row.name));
+
+        setFilterTags(normalized.length ? normalized : buildFallbackTags());
+      } catch (error) {
+        console.warn("[AllNotes] Failed to load filter tags:", error);
+        setFilterTags(buildFallbackTags());
+      } finally {
+        setFilterTagsLoading(false);
+      }
+    };
+
+    void loadTagFilters();
+  }, [defaultTagOrder, notes, session?.access_token, user?.id]);
+
+  useEffect(() => {
+    // Remove invalid tag IDs if catalog changes.
+    if (!filterTags.length || !selectedTagIds.length) return;
+    const allowed = new Set(filterTags.map((tag) => tag.id));
+    const next = selectedTagIds.filter((id) => allowed.has(id));
+    if (next.length !== selectedTagIds.length) {
+      setSelectedTagIds(next);
+    }
+  }, [filterTags, selectedTagIds]);
+
+  useEffect(() => {
+    if (!showFilterMenu) return;
+    setPendingTagIds(selectedTagIds);
+  }, [selectedTagIds, showFilterMenu]);
 
   const filteredNotes = useMemo(() => {
     return notes.filter(n => {
@@ -228,9 +425,45 @@ export function AllNotes() {
       const titleMatch = n.title?.toLowerCase().includes(searchLower) ?? false;
       const contentMatch = n.content?.toLowerCase().includes(searchLower) ?? false;
       const tagsMatch = Array.isArray(n.tags) && n.tags.some(t => t?.toLowerCase().includes(searchLower));
-      return titleMatch || contentMatch || tagsMatch;
+      const searchPass = titleMatch || contentMatch || tagsMatch;
+
+      if (!selectedTagNames.length) return searchPass;
+      const noteTagSet = new Set((Array.isArray(n.tags) ? n.tags : []).map((tag) => String(tag).toLowerCase()));
+      const tagPass = selectedTagNames.some((selectedName) => noteTagSet.has(selectedName));
+
+      return searchPass && tagPass;
     });
-  }, [notes, searchQuery]);
+  }, [notes, searchQuery, selectedTagNames]);
+
+  const defaultFilterTags = useMemo(
+    () => filterTags.filter((tag) => tag.isDefault),
+    [filterTags]
+  );
+
+  const personalizedFilterTags = useMemo(
+    () => filterTags.filter((tag) => tag.isPersonalized || !tag.isDefault),
+    [filterTags]
+  );
+
+  const activeFilterCount = selectedTagIds.length;
+
+  const togglePendingTag = (tagId: string) => {
+    setPendingTagIds((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId]
+    );
+  };
+
+  const applyFilters = () => {
+    setSelectedTagIds(pendingTagIds);
+    setShowFilterMenu(false);
+  };
+
+  const clearAllFilters = () => {
+    setPendingTagIds([]);
+    setSelectedTagIds([]);
+  };
 
   const handleAddNote = () => {
     addNote().then(id => navigate(`/home/editor/${id}`));
@@ -384,23 +617,19 @@ export function AllNotes() {
   };
 
   const getTagColor = (tag: string) => {
-    const t = tag.toUpperCase();
-    if (['RESEARCH', 'INSPIRATION'].includes(t)) return 'bg-blue-50 text-blue-600';
-    if (['PLANNING', 'TEAM'].includes(t)) return 'bg-purple-50 text-purple-600';
-    if (['TECH'].includes(t)) return 'bg-orange-50 text-orange-600';
-    if (['PERSONAL'].includes(t)) return 'bg-green-50 text-green-600';
-    if (['CREATIVE'].includes(t)) return 'bg-pink-50 text-pink-600';
-    return 'bg-gray-100 text-gray-600';
+    const style = getTagStyle(tag);
+    if (style.text === "#1E40AF") return "bg-blue-50 text-blue-700";
+    if (style.text === "#9A3412") return "bg-orange-50 text-orange-700";
+    if (style.text === "#115E59") return "bg-teal-50 text-teal-700";
+    return "bg-slate-100 text-slate-600";
   };
 
   const getTagTextColor = (tag: string) => {
-    const t = tag.toUpperCase();
-    if (['RESEARCH', 'INSPIRATION'].includes(t)) return 'text-blue-600';
-    if (['PLANNING', 'TEAM'].includes(t)) return 'text-purple-600';
-    if (['TECH'].includes(t)) return 'text-orange-600';
-    if (['PERSONAL'].includes(t)) return 'text-green-600';
-    if (['CREATIVE'].includes(t)) return 'text-pink-600';
-    return 'text-gray-500';
+    const style = getTagStyle(tag);
+    if (style.text === "#1E40AF") return "text-blue-700";
+    if (style.text === "#9A3412") return "text-orange-700";
+    if (style.text === "#115E59") return "text-teal-700";
+    return "text-slate-500";
   };
 
   const getNotePreview = (content: string) => {
@@ -434,12 +663,173 @@ export function AllNotes() {
               className="min-h-11 w-full rounded-xl border border-transparent bg-[var(--color-background)] py-3 pl-11 pr-4 font-medium text-[var(--color-text-primary)] placeholder-slate-400 transition-all focus:border-[var(--color-primary)] focus:bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20"
             />
           </div>
-          <button className="flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200/50 bg-[var(--color-surface)] px-4 py-2.5 font-semibold text-[var(--color-text-primary)] shadow-sm transition-colors hover:bg-[var(--color-background)]">
-            <Filter size={18} />
-            <span className="hidden sm:inline">Filter</span>
-          </button>
+          <div className="relative">
+            <button
+              ref={filterButtonRef}
+              onClick={() => {
+                setPendingTagIds(selectedTagIds);
+                setShowFilterMenu((v) => !v);
+              }}
+              className="relative flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200/50 bg-[var(--color-surface)] px-4 py-2.5 font-semibold text-[var(--color-text-primary)] shadow-sm transition-colors hover:bg-[var(--color-background)]"
+            >
+              <Filter size={18} />
+              <span className="hidden sm:inline">Filter</span>
+              {activeFilterCount > 0 && (
+                <span className="absolute -right-2 -top-2 min-w-5 h-5 px-1 rounded-full bg-[var(--color-primary)] text-white text-[10px] font-bold flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {showFilterMenu && (
+                <motion.div
+                  ref={filterMenuRef}
+                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                  transition={{ duration: 0.16 }}
+                  className="absolute right-0 mt-2 z-30 w-[min(92vw,30rem)] rounded-2xl border border-slate-200/70 bg-[var(--color-surface)] p-4 shadow-2xl"
+                >
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <h3 className="text-sm font-bold text-[var(--color-text-primary)]">Filter by Tags</h3>
+                    <div className="flex items-center gap-2">
+                      {selectedTagIds.length > 0 && (
+                        <button
+                          onClick={clearAllFilters}
+                          className="text-xs font-semibold text-slate-500 hover:text-slate-700"
+                        >
+                          Clear all filters
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {filterTagsLoading ? (
+                    <div className="py-6 text-center text-sm text-slate-500">Loading tags...</div>
+                  ) : filterTags.length === 0 ? (
+                    <div className="py-6 text-center text-sm text-slate-500">No tags available yet.</div>
+                  ) : (
+                    <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-wider font-bold text-slate-500 mb-2">Default Tags</p>
+                        <div className="flex flex-wrap gap-2">
+                          {defaultFilterTags.map((tag) => {
+                            const selected = pendingTagIds.includes(tag.id);
+                            const style = getTagStyle(tag.name, selected);
+                            return (
+                              <button
+                                key={tag.id}
+                                onClick={() => togglePendingTag(tag.id)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-200 ${selected ? "-translate-y-[1px]" : "hover:-translate-y-[1px]"}`}
+                                style={{
+                                  background: selected ? style.text : style.bg,
+                                  color: selected ? "#FFFFFF" : style.text,
+                                  borderColor: selected ? style.text : style.border,
+                                }}
+                              >
+                                {selected && (
+                                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/20">
+                                    <Check size={11} />
+                                  </span>
+                                )}
+                                <span>{tag.name}</span>
+                                <span className={`text-[10px] ${selected ? "opacity-90" : "opacity-70"}`}>{tag.count}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {personalizedFilterTags.length > 0 && (
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wider font-bold text-slate-500 mb-2">Personalized Tags</p>
+                          <div className="flex flex-wrap gap-2">
+                            {personalizedFilterTags.map((tag) => {
+                              const selected = pendingTagIds.includes(tag.id);
+                              const style = getTagStyle(tag.name, selected);
+                              return (
+                                <div key={tag.id} className="flex flex-col items-start">
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">Personalized</span>
+                                  <button
+                                    onClick={() => togglePendingTag(tag.id)}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-200 ${selected ? "-translate-y-[1px]" : "hover:-translate-y-[1px]"}`}
+                                    style={{
+                                      background: selected ? style.text : style.bg,
+                                      color: selected ? "#FFFFFF" : style.text,
+                                      borderColor: selected ? style.text : style.border,
+                                    }}
+                                  >
+                                    {selected && (
+                                      <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/20">
+                                        <Check size={11} />
+                                      </span>
+                                    )}
+                                    <span>{tag.name}</span>
+                                    <span className={`text-[10px] ${selected ? "opacity-90" : "opacity-70"}`}>{tag.count}</span>
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => {
+                        setShowFilterMenu(false);
+                        setPendingTagIds(selectedTagIds);
+                      }}
+                      className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={applyFilters}
+                      className="px-3 py-2 rounded-lg bg-[var(--color-primary)] text-white text-xs font-semibold hover:brightness-105"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
+
+      {selectedTagItems.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {selectedTagItems.map((tag) => {
+            const style = getTagStyle(tag.name, true);
+            return (
+              <span
+                key={tag.id}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold"
+                style={{ background: style.bg, color: style.text, borderColor: style.border }}
+              >
+                {tag.name}
+                <button
+                  onClick={() => setSelectedTagIds((prev) => prev.filter((id) => id !== tag.id))}
+                  className="p-0.5 rounded-full hover:bg-black/10"
+                  aria-label={`Remove ${tag.name} filter`}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            );
+          })}
+          <button
+            onClick={clearAllFilters}
+            className="text-xs font-semibold text-slate-500 hover:text-slate-700"
+          >
+            Clear all filters
+          </button>
+        </div>
+      )}
 
       {/* Grid Area */}
       {/* Responsive grid: 1 col mobile, 2 at >=480, 3 at >=1024, 4 at >=1440. */}
@@ -507,7 +897,7 @@ export function AllNotes() {
               <FileText size={24} className="text-[var(--color-text-secondary)]" />
             </div>
             <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-1">No notes found</h3>
-            <p className="text-[var(--color-text-secondary)] text-sm font-medium">Try adjusting your search terms.</p>
+            <p className="text-[var(--color-text-secondary)] text-sm font-medium">Try adjusting your search terms or active tag filters.</p>
           </div>
         )}
       </div>

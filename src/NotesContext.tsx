@@ -16,6 +16,8 @@ export type { Note, Reminder };
     addNoteForCourse: (courseId: string) => Promise<string>;
     updateNote:     (id: string, updates: Partial<Note>) => Promise<void>;
     deleteNote:     (id: string) => Promise<void>;
+    addTagToNote:   (noteId: string, tag: string) => Promise<void>;
+    removeTagFromNote: (noteId: string, tag: string) => Promise<void>;
     assignNoteToCourse: (noteId: string, courseId: string | null) => Promise<void>;
     refreshNotes:   () => Promise<void>;
     reminders:      Reminder[];
@@ -411,6 +413,21 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addTagToNote = async (noteId: string, tag: string) => {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+    const tags = Array.isArray(note.tags) ? note.tags : [];
+    if (tags.includes(tag)) return;
+    await updateNote(noteId, { tags: [...tags, tag] });
+  };
+
+  const removeTagFromNote = async (noteId: string, tag: string) => {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+    const tags = Array.isArray(note.tags) ? note.tags : [];
+    await updateNote(noteId, { tags: tags.filter(t => t !== tag) });
+  };
+
   const assignNoteToCourse = async (noteId: string, courseId: string | null) => {
     setNotes(prev =>
       prev.map(n => n.id === noteId ? { ...n, course_id: courseId, updated_at: new Date().toISOString() } : n)
@@ -572,7 +589,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     <NotesContext.Provider value={{
       notes, notesLoading, loading: notesLoading,
       searchQuery, setSearchQuery,
-      addNote, addNoteForCourse, updateNote, deleteNote, assignNoteToCourse, refreshNotes: () => fetchNotes(true),
+      addNote, addNoteForCourse, updateNote, deleteNote, addTagToNote, removeTagFromNote, assignNoteToCourse, refreshNotes: () => fetchNotes(true),
       reminders, addReminder, toggleReminder, removeReminder, extractRemindersFromNote,
     }}>
       {children}

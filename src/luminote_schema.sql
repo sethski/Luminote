@@ -141,6 +141,116 @@ CREATE TRIGGER notes_updated_at
   FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
 
 
+-- ─── 3A. TAGS CATALOG ─────────────────────────────
+CREATE TABLE IF NOT EXISTS public.tags (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT NOT NULL,
+  color       TEXT NOT NULL DEFAULT '#64748B',
+  user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  is_default  BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT tags_name_check CHECK (char_length(trim(name)) > 0),
+  CONSTRAINT tags_default_owner_check CHECK ((is_default = TRUE AND user_id IS NULL) OR (is_default = FALSE AND user_id IS NOT NULL))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS tags_default_name_unique_idx
+  ON public.tags (lower(name))
+  WHERE is_default = TRUE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS tags_user_name_unique_idx
+  ON public.tags (user_id, lower(name))
+  WHERE is_default = FALSE;
+
+CREATE INDEX IF NOT EXISTS tags_user_id_idx ON public.tags(user_id);
+
+ALTER TABLE public.tags ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read default and own tags"
+  ON public.tags FOR SELECT
+  USING (is_default = TRUE OR auth.uid() = user_id);
+
+CREATE POLICY "Users can create own custom tags"
+  ON public.tags FOR INSERT
+  WITH CHECK (is_default = FALSE AND auth.uid() = user_id);
+
+CREATE POLICY "Users can update own custom tags"
+  ON public.tags FOR UPDATE
+  USING (is_default = FALSE AND auth.uid() = user_id)
+  WITH CHECK (is_default = FALSE AND auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own custom tags"
+  ON public.tags FOR DELETE
+  USING (is_default = FALSE AND auth.uid() = user_id);
+
+CREATE TRIGGER tags_updated_at
+  BEFORE UPDATE ON public.tags
+  FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
+
+INSERT INTO public.tags (name, color, user_id, is_default)
+VALUES
+  ('Assignment', '#3B82F6', NULL, TRUE),
+  ('Major', '#1D4ED8', NULL, TRUE),
+  ('Minor', '#60A5FA', NULL, TRUE),
+  ('TODO', '#F97316', NULL, TRUE),
+  ('Readings', '#0EA5E9', NULL, TRUE),
+  ('Practice', '#10B981', NULL, TRUE),
+  ('Project', '#8B5CF6', NULL, TRUE),
+  ('Personal', '#14B8A6', NULL, TRUE),
+  ('Planning', '#F59E0B', NULL, TRUE),
+  ('Dump', '#64748B', NULL, TRUE)
+ON CONFLICT DO NOTHING;
+
+
+-- ─── 3B. NOTE ↔ TAGS RELATION ─────────────────────
+CREATE TABLE IF NOT EXISTS public.note_tags (
+  note_id      UUID NOT NULL REFERENCES public.notes(id) ON DELETE CASCADE,
+  tag_id       UUID NOT NULL REFERENCES public.tags(id) ON DELETE CASCADE,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (note_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS note_tags_tag_id_idx ON public.note_tags(tag_id);
+
+ALTER TABLE public.note_tags ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own note tag links"
+  ON public.note_tags FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.notes n
+      WHERE n.id = note_tags.note_id AND n.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can create own note tag links"
+  ON public.note_tags FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1
+      FROM public.notes n
+      WHERE n.id = note_tags.note_id AND n.user_id = auth.uid()
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM public.tags t
+      WHERE t.id = note_tags.tag_id
+        AND (t.is_default = TRUE OR t.user_id = auth.uid())
+    )
+  );
+
+CREATE POLICY "Users can delete own note tag links"
+  ON public.note_tags FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1
+      FROM public.notes n
+      WHERE n.id = note_tags.note_id AND n.user_id = auth.uid()
+    )
+  );
+
+
 -- ─── 4. FLASHCARDS ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.flashcards (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

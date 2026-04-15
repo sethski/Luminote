@@ -577,6 +577,64 @@ function QuickStatRow({ label, value, color }: { label: string; value: number; c
   );
 }
 
+function ConnectedPomodoroTimer({ plan }: { plan: StudyPlan }) {
+  const { state, toggleTimer, resetTimer } = useTimer();
+  
+  const mins = Math.floor(state.timeLeft / 60).toString().padStart(2, "0");
+  const secs = (state.timeLeft % 60).toString().padStart(2, "0");
+  
+  const isFocusing = state.running && state.mode === "focus";
+
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-slate-200/60 bg-white p-2.5 px-4 shadow-sm mt-3">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+          isFocusing ? "bg-red-100 text-red-600 animate-pulse" : "bg-slate-100 text-slate-500"
+        }`}>
+          <Clock size={16} />
+        </div>
+        <div>
+          <div className="text-lg font-bold tracking-tight text-slate-800 leading-none font-mono">
+            {mins}:{secs}
+          </div>
+          <div className="text-[10px] font-medium uppercase tracking-wider text-slate-500 mt-1">
+            {state.mode === "focus" ? "Focusing" : "Break"} • {plan.subject || "General"}
+          </div>
+        </div>
+      </div>
+      
+      <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-slate-600 mr-2">
+          <span className="text-sm">🍅</span>
+          <span>{state.sessionsCompleted}/4</span>
+        </div>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={toggleTimer}
+            className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+              state.running 
+                ? "bg-red-50 hover:bg-red-100 text-red-600" 
+                : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+            }`}
+            title={state.running ? "Pause" : "Start"}
+          >
+            {state.running ? <Pause size={14} className="fill-current" /> : <Play size={14} className="fill-current ml-0.5" />}
+          </button>
+          <button
+            type="button"
+            onClick={resetTimer}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+            title="Reset"
+          >
+            <RotateCcw size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function StudyPlanner() {
   const navigate = useNavigate();
   const { user, settings, updateSettings } = useAuth();
@@ -1291,45 +1349,47 @@ export function StudyPlanner() {
               })}
             </div>
 
-            <div className="mb-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+            <div className="mb-4 rounded-xl border border-slate-200/60 bg-slate-50/50 p-3 shadow-sm">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-12 md:items-start">
+                <input
+                  className="sp-input md:col-span-3 text-sm py-1.5"
+                  value={form.title}
+                  onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                  placeholder="Task title"
+                />
+                <input
+                  className="sp-input md:col-span-2 text-sm py-1.5"
+                  value={form.subject}
+                  onChange={(e) => setForm((prev) => ({ ...prev, subject: e.target.value }))}
+                  placeholder="Subject"
+                />
+                <input
+                  className="sp-input md:col-span-2 text-sm py-1.5"
+                  type="date"
+                  value={form.due_date}
+                  onChange={(e) => setForm((prev) => ({ ...prev, due_date: e.target.value }))}
+                />
+                <select
+                  className="sp-select md:col-span-2 text-sm py-1.5"
+                  value={form.priority}
+                  onChange={(e) => setForm((prev) => ({ ...prev, priority: e.target.value as Priority }))}
+                >
+                  <option value="low">Low Priority</option>
+                  <option value="medium">Medium Priority</option>
+                  <option value="high">High Priority</option>
+                </select>
+                <div className="md:col-span-3">
+                  <button type="button" disabled={saving} className="sp-btn sp-btn-primary w-full py-1.5 flex justify-center text-sm" onClick={addTask}>
+                    <Plus size={14} /> {saving ? "..." : "Add Task"}
+                  </button>
+                </div>
+              </div>
               <input
-                className="sp-input"
-                value={form.title}
-                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="Task title"
-              />
-              <input
-                className="sp-input"
-                value={form.subject}
-                onChange={(e) => setForm((prev) => ({ ...prev, subject: e.target.value }))}
-                placeholder="Subject"
-              />
-              <input
-                className="sp-input"
-                type="date"
-                value={form.due_date}
-                onChange={(e) => setForm((prev) => ({ ...prev, due_date: e.target.value }))}
-              />
-              <select
-                className="sp-select"
-                value={form.priority}
-                onChange={(e) => setForm((prev) => ({ ...prev, priority: e.target.value as Priority }))}
-              >
-                <option value="low">Low Priority</option>
-                <option value="medium">Medium Priority</option>
-                <option value="high">High Priority</option>
-              </select>
-              <textarea
-                className="sp-textarea md:col-span-2"
+                className="sp-input w-full mt-2 text-sm py-1.5 bg-transparent border-dashed"
                 value={form.notes}
                 onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
-                placeholder="Notes"
+                placeholder="Add notes (optional)..."
               />
-              <div className="md:col-span-2 flex justify-end">
-                <button type="button" disabled={saving} className="sp-btn sp-btn-primary" onClick={addTask}>
-                  <Plus size={15} /> {saving ? "Saving..." : "Add Task"}
-                </button>
-              </div>
             </div>
 
             {errorMessage && (
@@ -1338,9 +1398,17 @@ export function StudyPlanner() {
               </div>
             )}
 
-            <div className="mt-4 max-h-[560px] overflow-y-auto pr-2">
+            <div className="mt-4 flex items-center justify-between text-xs text-slate-500 mb-2">
+              <span className="font-medium text-slate-700">Your Tasks</span>
+              {filteredPlans.length > 1 && <span>Scroll for {filteredPlans.length - 1} more</span>}
+            </div>
+
+            <div 
+              className="max-h-[460px] overflow-y-auto pr-2 pb-16 flex flex-col gap-4" 
+              style={{ scrollSnapType: "y mandatory", scrollBehavior: "smooth" }}
+            >
               {loading ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div className="sp-skeleton h-20" />
                   <div className="sp-skeleton h-20" />
                   <div className="sp-skeleton h-20" />
@@ -1352,7 +1420,7 @@ export function StudyPlanner() {
                   <p className="text-sm text-slate-500">Add your first task above, or adjust filters to see more items.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <>
                   {filteredPlans.map((plan) => {
                   const meta = taskMeta[plan.id] || {
                     expanded: false,
@@ -1365,11 +1433,15 @@ export function StudyPlanner() {
                   const daysLeft = due ? differenceInCalendarDays(due, new Date()) : null;
 
                   return (
-                    <article
-                      key={plan.id}
-                      className="sp-card p-3 sm:p-4"
-                      style={{ borderColor: priorityStyle.border }}
+                    <div 
+                      key={plan.id} 
+                      className="shrink-0 w-full" 
+                      style={{ scrollSnapAlign: "start", scrollMarginTop: "0.5rem" }}
                     >
+                      <article
+                        className="sp-card p-3 sm:p-4 mb-2 shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-blue-500/50"
+                        style={{ borderColor: priorityStyle.border }}
+                      >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -1580,9 +1652,11 @@ export function StudyPlanner() {
                         </div>
                       </div>
                     </article>
+                    <ConnectedPomodoroTimer plan={plan} />
+                  </div>
                   );
                   })}
-                </div>
+                </>
               )}
             </div>
           </div>

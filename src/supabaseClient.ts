@@ -91,6 +91,8 @@ export type Note = {
   tags:        string[];
   paper_style: string;
   color_style: string;
+  bg_color?:   string | null;
+  is_favorite?: boolean;
   is_deleted:  boolean;
   created_at:  string;
   updated_at:  string;
