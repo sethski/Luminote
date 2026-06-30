@@ -8,7 +8,8 @@
     "dev": "vite",
     "smoke": "node scripts/smoke-imports.mjs",
     "check:openrouter": "node scripts/check-openrouter.mjs",
-    "check:deploy": "node scripts/check-deploy-env.mjs"
+    "check:deploy": "node scripts/check-deploy-env.mjs",
+    "check:schema": "node scripts/audit-supabase-schema.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
