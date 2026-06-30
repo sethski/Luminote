@@ -18,6 +18,7 @@ export type { Note, Reminder };
     addNoteForCourse: (courseId: string) => Promise<string>;
     updateNote:     (id: string, updates: Partial<Note>) => Promise<void>;
     deleteNote:     (id: string) => Promise<void>;
+    deleteNotesForCourse: (courseId: string) => Promise<void>;
     addTagToNote:   (noteId: string, tag: string) => Promise<void>;
     removeTagFromNote: (noteId: string, tag: string) => Promise<void>;
     assignNoteToCourse: (noteId: string, courseId: string | null) => Promise<void>;
@@ -355,6 +356,23 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const deleteNotesForCourse = async (courseId: string) => {
+    setNotes(prev => prev.filter(n => n.course_id !== courseId));
+    if (!user?.id) return;
+
+    const { error } = await supabase
+      .from("notes")
+      .update({ is_deleted: true })
+      .eq("user_id", user.id)
+      .eq("course_id", courseId)
+      .eq("is_deleted", false);
+
+    if (error) {
+      await fetchNotes(true);
+      throw error;
+    }
+  };
+
   const addTagToNote = async (noteId: string, tag: string) => {
     const note = notes.find(n => n.id === noteId);
     if (!note) return;
@@ -531,7 +549,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     <NotesContext.Provider value={{
       notes, notesLoading, loading: notesLoading,
       searchQuery, setSearchQuery,
-      addNote, addNoteForCourse, updateNote, deleteNote, addTagToNote, removeTagFromNote, assignNoteToCourse, refreshNotes: () => fetchNotes(true),
+      addNote, addNoteForCourse, updateNote, deleteNote, deleteNotesForCourse, addTagToNote, removeTagFromNote, assignNoteToCourse, refreshNotes: () => fetchNotes(true),
       reminders, addReminder, toggleReminder, removeReminder, extractRemindersFromNote,
     }}>
       {children}
