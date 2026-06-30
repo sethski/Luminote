@@ -8,7 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       // Project files are flat — alias @ to the project root
-      '@': path.resolve(__dirname, '.'),
+      '@': path.resolve(__dirname, 'src'),
     },
   },
   assetsInclude: ['**/*.svg', '**/*.csv'],
