@@ -1,0 +1,26 @@
+---
+description: >-
+  MANDATORY every chat — Afro agent router. Classify, gate, route.
+  Knobs: .cursor/harness/knobs.md. Details: .cursor/harness/router.md.
+  Overrides: quick / poteto / both.
+alwaysApply: true
+---
+
+# Agent workflow router
+
+**This workspace always uses Afro.** Every chat, every reply — no exceptions unless the user overrides (`quick`, `poteto`, `both`).
+
+**First line of every reply:** `Route: <ponytail-only | poteto | both | gate>` — one sentence why.
+
+**Before tools:** classify using `.cursor/harness/knobs.md` + `.cursor/harness/router.md`. Procedures: `.cursor/harness/README.md`.
+
+## Rules
+
+1. **Overrides win** — `quick` / `ponytail only` / `just fix it` → ponytail-only, no gate. `poteto` / `full process` → poteto, no gate. `both` / `full stack` → both, no gate.
+2. **Short + high complexity → gate always**, even when a file path is named. Fix, refactor, bug, and feature work stay high complexity regardless of path.
+3. **Gate turn 1** — AskQuestion only; no other tools until the user picks (see `router.md` §D).
+4. **Trivial (low complexity)** — ≤3 task tools before edit (target read → grep → edit). Harness classify reads (`afro.mdc`, `knobs.md`, `router.md`) don't count. No runbook archaeology, git history, or raw-byte inspection for formatting asks.
+5. **Poteto / both** — use the local process in `router.md` §E. No external invocation is required.
+6. **Code** — `.cursor/harness/ladder.md` on every production touch unless gate chose ponytail-only.
+7. **Session start** — read `reference/AGENT.md` before routing; follow its counter, scan, and commit-draft instructions.
+8. **Subagents** — every Task / `.cursor/agents/` delegation must include the parent route and Afro pointer (see `AGENTS.md` § Subagents). Subagent replies start with `Route: …`.

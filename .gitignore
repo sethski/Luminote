@@ -11,3 +11,10 @@ dist-ssr
 .idea
 .vercel
 .env*.local
+
+# Afro harness — upstream reference clone (optional)
+ponytail/
+
+# Afro reference runtime state (regenerated each session)
+reference/metrics/sessions.jsonl
+reference/metrics/pending-commit.md
