@@ -1,6 +1,5 @@
--- Optional search optimization for Luminote notes
--- Run in Supabase SQL editor after the base schema is applied.
--- Safe to re-run (IF NOT EXISTS).
+-- Same as database/note_search_schema.sql (idempotent).
+-- Fixes 42P17: to_tsvector('english', ...) is not IMMUTABLE in index expressions.
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
@@ -13,8 +12,6 @@ CREATE INDEX IF NOT EXISTS notes_content_trgm_idx
 CREATE INDEX IF NOT EXISTS notes_tags_gin_idx
   ON public.notes USING gin (tags);
 
--- Two-arg to_tsvector('english', ...) is STABLE, not IMMUTABLE — invalid in index expressions.
--- Single-arg to_tsvector(text) is IMMUTABLE (uses the database default text search config).
 CREATE OR REPLACE FUNCTION public.notes_search_tsvector(
   note_title text,
   note_content text,

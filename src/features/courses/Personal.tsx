@@ -146,7 +146,7 @@ export function Personal() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
-  const { notes } = useNotes();
+  const { notes, deleteNotesForCourse } = useNotes();
   const [messages, setMessages] = useState<{role: "user"|"assistant", content: string}[]>([
     { role: "assistant", content: "Hi! I'm Lumi, your AI study assistant. Ready to organize your tasks or summarize some notes?" },
   ]);
@@ -500,27 +500,39 @@ export function Personal() {
       localStorage.removeItem(`notes-${course.id}`);
     }
 
-    setCourseDeleteTarget(null);
-
     if (!user || !isBackendAvailable) {
+      if (deleteNotes) {
+        try {
+          await deleteNotesForCourse(course.id);
+        } catch {
+          // Local state already updated; Supabase sync failed offline.
+        }
+      }
       toast.success(deleteNotes ? "Course and notes deleted." : "Course deleted. Notes were kept.");
       return;
     }
 
-    const { error } = await (supabase as any)
-      .from("user_courses")
-      .delete()
-      .eq("id", course.id)
-      .eq("user_id", user.id);
+    try {
+      if (deleteNotes) {
+        await deleteNotesForCourse(course.id);
+      }
 
-    if (error) {
-      console.error("Failed to delete course:", error.message);
+      const { error } = await supabase
+        .from("user_courses")
+        .delete()
+        .eq("id", course.id)
+        .eq("user_id", user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success(deleteNotes ? "Course and notes deleted." : "Course deleted. Notes were kept.");
+    } catch (error) {
+      console.error("Failed to delete course:", error instanceof Error ? error.message : error);
       setIsBackendAvailable(false);
       toast.info("Removed locally. Supabase deletion did not complete.");
-      return;
     }
-
-    toast.success(deleteNotes ? "Course and notes deleted." : "Course deleted. Notes were kept.");
   };
 
   const closeDeleteDialog = () => {
